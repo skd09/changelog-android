@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Changelog" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">#0F1117</item>
+    </style>
+
+    <!-- Android 12+ splash screen — plain dark background, no icon, instant dismiss -->
+    <style name="Theme.Changelog.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0F1117</item>
+        <item name="postSplashScreenTheme">@style/Theme.Changelog</item>
+        <item name="android:windowIsTranslucent">true</item>
+    </style>
+</resources>
