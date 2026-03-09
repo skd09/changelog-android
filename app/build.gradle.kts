@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -23,13 +24,25 @@ android {
         debug {
             buildConfigField("String", "BASE_URL", "\"https://dev-api.thechangelog.app/api/v1\"")
         }
+        create("prod") {
+            initWith(getByName("release"))
+            buildConfigField("String", "BASE_URL", "\"https://tcl-prod-api.thechangelog.app/api/v1\"")
+            signingConfig = signingConfigs.getByName("debug")
+            lint {
+                checkReleaseBuilds = false
+            }
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "BASE_URL", "\"https://api.thechangelog.app/api/v1\"")
+            buildConfigField("String", "BASE_URL", "\"https://tcl-prod-api.thechangelog.app/api/v1\"")
+            signingConfig = signingConfigs.getByName("debug")
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
     }
     compileOptions {
@@ -84,12 +97,12 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
-    // Splash screen (suppress Android 12+ default)
+    // Splash screen
     implementation(libs.androidx.splashscreen)
 
     // AdMob
     implementation(libs.play.services.ads)
 
-    // Material ui
-//    implementation(libs.material)
+    // Firebase
+    implementation(libs.firebase.messaging)
 }

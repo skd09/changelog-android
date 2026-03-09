@@ -3,6 +3,8 @@ package com.sharvari.changelog.data.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+// ── Article ───────────────────────────────────────────────────────────────────
+
 @Serializable
 data class Article(
     val id: String,
@@ -25,6 +27,8 @@ data class ArticleCategory(
     val icon: String? = null,
     @SerialName("article_count") val articleCount: Int? = null,
 )
+
+// ── Responses ─────────────────────────────────────────────────────────────────
 
 @Serializable
 data class ArticlesResponse(
@@ -63,15 +67,63 @@ data class ServerStats(
 @Serializable
 data class StatsResponse(val stats: ServerStats)
 
-data class StatsDelta(
-    var reads: Int = 0,
-    var skips: Int = 0,
-    var sessions: Int = 0,
-    var readSeconds: Int = 0,
-    var sessionSeconds: Int = 0,
+@Serializable
+data class SuccessResponse(val success: Boolean = true)
+
+// ── Requests ──────────────────────────────────────────────────────────────────
+
+@Serializable
+data class DeviceRegisterRequest(
+    val platform: String,
+    @SerialName("app_version") val appVersion: String,
+    @SerialName("fcm_token")   val fcmToken: String? = null,
 )
 
-// ── App Config (maintenance / force update) ────────────────────────────────
+@Serializable
+data class FCMTokenRequest(
+    @SerialName("fcm_token") val fcmToken: String,
+)
+
+@Serializable
+data class StatsSyncRequest(
+    val reads: Int,
+    val skips: Int,
+    val sessions: Int,
+    @SerialName("read_seconds")    val readSeconds: Int,
+    @SerialName("session_seconds") val sessionSeconds: Int,
+)
+
+@Serializable
+data class FeedbackRequest(
+    val type: String,
+    val message: String,
+    val platform: String,
+)
+
+// ── Query params (not serialized — used to build URL) ─────────────────────────
+
+data class ArticlesQuery(
+    val category: String? = null,
+    val exclude:  List<String> = emptyList(),
+    val limit:    Int = 20,
+    val offset:   Int = 0,
+)
+
+// ── Stats delta (local accumulator) ──────────────────────────────────────────
+
+data class StatsDelta(
+    var reads:          Int = 0,
+    var skips:          Int = 0,
+    var sessions:       Int = 0,
+    var readSeconds:    Int = 0,
+    var sessionSeconds: Int = 0,
+) {
+    val isEmpty: Boolean
+        get() = reads == 0 && skips == 0 && sessions == 0 &&
+                readSeconds == 0 && sessionSeconds == 0
+}
+
+// ── App Config ────────────────────────────────────────────────────────────────
 
 @Serializable
 data class AppConfig(
@@ -89,22 +141,22 @@ data class MaintenanceConfig(
 @Serializable
 data class ForceUpdateConfig(
     val enabled: Boolean = false,
-    @SerialName("min_version") val minVersion: String = "0.0.0",
+    @SerialName("min_version")   val minVersion: String = "0.0.0",
     @SerialName("app_store_url") val appStoreUrl: String = "",
     val message: String = "Please update to continue.",
 )
 
-// ── All categories — mirrors iOS CategoryStore.allCategories ───────────────
+// ── All categories ────────────────────────────────────────────────────────────
 
 val ALL_CATEGORIES = listOf(
-    ArticleCategory("1",  "Technology", "technology",  "memory"),
-    ArticleCategory("2",  "AI",         "ai",          "smart_toy"),
-    ArticleCategory("3",  "Security",   "security",    "lock"),
-    ArticleCategory("4",  "Science",    "science",     "science"),
-    ArticleCategory("5",  "Business",   "business",    "business_center"),
-    ArticleCategory("6",  "Crypto",     "crypto",      "currency_bitcoin"),
-    ArticleCategory("7",  "Gaming",     "gaming",      "sports_esports"),
-    ArticleCategory("8",  "Space",      "space",       "rocket_launch"),
-    ArticleCategory("9",  "Health",     "health",      "favorite"),
-    ArticleCategory("10", "Open Source","open-source", "code"),
+    ArticleCategory("1",  "Technology",  "technology",   "memory"),
+    ArticleCategory("2",  "AI",          "ai",           "smart_toy"),
+    ArticleCategory("3",  "Security",    "security",     "lock"),
+    ArticleCategory("4",  "Science",     "science",      "science"),
+    ArticleCategory("5",  "Business",    "business",     "business_center"),
+    ArticleCategory("6",  "Crypto",      "crypto",       "currency_bitcoin"),
+    ArticleCategory("7",  "Gaming",      "gaming",       "sports_esports"),
+    ArticleCategory("8",  "Space",       "space",        "rocket_launch"),
+    ArticleCategory("9",  "Health",      "health",       "favorite"),
+    ArticleCategory("10", "Open Source", "open-source",  "code"),
 )

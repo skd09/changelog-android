@@ -1,71 +1,39 @@
 package com.sharvari.changelog.data.store
 
 import android.content.Context
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import com.sharvari.changelog.data.api.APIService
-import com.sharvari.changelog.data.model.StatsDelta
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
+import com.sharvari.changelog.data.api.TokenProvider
 
-private val Context.dataStore by preferencesDataStore(name = "device_prefs")
+object DeviceTokenStore : TokenProvider {
 
-object DeviceTokenStore {
+    private const val PREFS_NAME = "device_prefs"
+    private const val TOKEN_KEY  = "tc_device_token"
 
-    private val TOKEN_KEY = stringPreferencesKey("tc_device_token")
-    private var _token: String? = null
+    private var appContext: Context? = null
 
-    val token: String? get() = _token
-    val isRegistered: Boolean get() = _token != null
-
-    // ── Init — call once from Application ──────────────────────────────────
-    suspend fun init(context: Context) {
-        val prefs = context.dataStore.data.first()
-        _token = prefs[TOKEN_KEY]
+    fun init(context: Context) {
+        appContext = context.applicationContext
     }
 
-    // ── Registration ────────────────────────────────────────────────────────
-    suspend fun registerIfNeeded(context: Context, appVersion: String) {
-        if (isRegistered) return
-        register(context, appVersion)
-    }
+    private fun prefs() = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    suspend fun register(context: Context, appVersion: String) {
-        try {
-            val response = APIService.registerDevice(appVersion)
-            _token = response.token
-            context.dataStore.edit { it[TOKEN_KEY] = response.token }
+    override val token: String?
+        get() = prefs()?.getString(TOKEN_KEY, null)
 
-            // Apply server stats if returned
-            response.stats?.let { StatsStore.applyFromServer(it) }
-
-            println("✅ Device registered: ${response.token.take(10)}...")
-        } catch (e: Exception) {
-            println("❌ Device registration failed: $e")
+    val isRegistered: Boolean
+        get() {
+            val ctx = appContext
+            val token = prefs()?.getString(TOKEN_KEY, null)
+            println("🔑 isRegistered check — appContext=${ctx != null}, token=${token?.take(10) ?: "NULL"}")
+            return token != null
         }
+
+    fun saveToken(token: String) {
+        prefs()?.edit()?.putString(TOKEN_KEY, token)?.apply()
+        println("✅ Device token saved: ${token.take(10)}...")
     }
 
-    // ── Stats ───────────────────────────────────────────────────────────────
-    suspend fun fetchStats() {
-        val t = _token ?: return
-        try {
-            val response = APIService.fetchStats(t)
-            StatsStore.applyFromServer(response.stats)
-        } catch (e: Exception) {
-            println("⚠️ Stats fetch failed: $e")
-        }
+    override fun clearToken() {
+        prefs()?.edit()?.remove(TOKEN_KEY)?.apply()
+        println("🗑 Device token cleared")
     }
-
-    fun syncStats(delta: StatsDelta) {
-        val t = _token ?: return
-        CoroutineScope(Dispatchers.IO).launch {
-            try { APIService.syncStats(t, delta) }
-            catch (e: Exception) { println("⚠️ Stats sync failed: $e") }
-        }
-    }
-
-    fun clearToken() { _token = null }
 }

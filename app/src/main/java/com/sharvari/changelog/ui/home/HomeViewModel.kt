@@ -1,6 +1,7 @@
 package com.sharvari.changelog.ui.home
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.sharvari.changelog.data.api.APIError
 import com.sharvari.changelog.data.api.APIService
@@ -15,7 +16,33 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class HomeViewModel : ViewModel() {
+// ── Repository interface (SRP + DIP) ─────────────────────────────────────────
+
+interface ArticleRepository {
+    suspend fun fetchArticles(
+        category: String?,
+        exclude:  List<String>,
+    ): List<Article>
+}
+
+// ── Default implementation ────────────────────────────────────────────────────
+
+class DefaultArticleRepository(
+    private val apiService: APIService = APIService.shared,
+) : ArticleRepository {
+    override suspend fun fetchArticles(category: String?, exclude: List<String>): List<Article> =
+        apiService.fetchArticles(category = category, exclude = exclude).data
+}
+
+// ── ViewModel ─────────────────────────────────────────────────────────────────
+
+class HomeViewModel(
+    private val repository:    ArticleRepository = DefaultArticleRepository(),
+    private val categoryStore: CategoryStore     = CategoryStore,
+    private val readStore:     ReadArticlesStore = ReadArticlesStore,
+    private val statsStore:    StatsStore        = StatsStore,
+    private val tokenStore:    DeviceTokenStore  = DeviceTokenStore,
+) : ViewModel() {
 
     private val _articles      = MutableStateFlow<List<Article>>(emptyList())
     private val _isLoading     = MutableStateFlow(false)
@@ -36,34 +63,35 @@ class HomeViewModel : ViewModel() {
             _errorMessage.value = null
             if (refresh) _articles.value = emptyList()
 
-            // Wait for token — max 5 seconds (matches iOS)
+            // Wait up to 5s for device registration to complete
             var waited = 0
-            while (DeviceTokenStore.token == null && waited < 10) {
-                delay(500)
-                waited++
+            while (tokenStore.token == null && waited < 10) {
+                delay(500); waited++
             }
 
-            if (DeviceTokenStore.token == null) {
-                _errorMessage.value = "Could not connect. Please try again."
-                _isLoading.value    = false
+            if (tokenStore.token == null) {
+                _errorMessage.value  = "Could not connect. Please try again."
+                _isLoading.value     = false
                 _hasLoadedOnce.value = true
                 return@launch
             }
 
             try {
-                val selectedSlugs = CategoryStore.selectedSlugs.value
-                val response = APIService.fetchArticles(
-                    exclude = ReadArticlesStore.excludeList,
+                val selectedSlugs = categoryStore.selectedSlugs.value
+                val currentIds    = _articles.value.map { it.id }
+                val excludeIds    = (readStore.excludeList + currentIds).distinct()
+
+                val newArticles = repository.fetchArticles(
+                    category = null,
+                    exclude  = excludeIds,
                 )
-                val filtered = response.data.filter { article ->
+
+                val filtered = newArticles.filter { article ->
                     val slug = article.category?.slug ?: return@filter true
                     selectedSlugs.contains(slug)
                 }
-                // Debug — remove once images confirmed working
-                filtered.take(3).forEach { a ->
-                    android.util.Log.d("CHANGELOG_IMG", "article: ${a.title.take(30)} | imageUrl: ${a.imageUrl}")
-                }
-                _articles.value = filtered
+                _articles.value = _articles.value + filtered
+
             } catch (e: APIError.Unauthorized) {
                 _errorMessage.value = "Reconnecting... please try again."
             } catch (e: Exception) {
@@ -77,21 +105,31 @@ class HomeViewModel : ViewModel() {
     }
 
     fun dismissArticle(article: Article) {
-        ReadArticlesStore.markAsRead(article.id)
-        StatsStore.recordSkip()
-        _articles.value = _articles.value.filter { it.id != article.id }
-        if (_articles.value.size < 3) loadArticles()
+        readStore.markAsRead(article.id)
+        statsStore.recordSkip()
+        removeAndRefreshIfNeeded(article.id)
     }
 
     fun openArticle(article: Article) {
-        ReadArticlesStore.markAsRead(article.id)
-        StatsStore.recordRead()
-        _articles.value = _articles.value.filter { it.id != article.id }
-        if (_articles.value.size < 3) loadArticles()
+        readStore.markAsRead(article.id)
+        statsStore.recordRead()
+        removeAndRefreshIfNeeded(article.id)
     }
 
     fun refreshForCategoryChange() {
         _articles.value = emptyList()
         loadArticles(refresh = true)
+    }
+
+    private fun removeAndRefreshIfNeeded(articleId: String) {
+        _articles.value = _articles.value.filter { it.id != articleId }
+        if (_articles.value.size < 3) loadArticles()
+    }
+
+    // ── Factory for DI without Hilt ───────────────────────────────────────────
+    class Factory : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            HomeViewModel() as T
     }
 }

@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 object AppConfigService {
 
+    private val apiService = APIService.shared
+
     private val _config   = MutableStateFlow<AppConfig?>(null)
     private val _isLoaded = MutableStateFlow(false)
 
@@ -18,17 +20,16 @@ object AppConfigService {
         get() = _config.value?.maintenance?.enabled == true
 
     fun needsForceUpdate(currentVersion: String): Boolean {
-        val min = _config.value?.forceUpdate?.minVersion ?: return false
-        if (!_config.value!!.forceUpdate.enabled) return false
-        return compareVersions(currentVersion, min) < 0
+        val cfg = _config.value ?: return false
+        if (!cfg.forceUpdate.enabled) return false
+        return compareVersions(currentVersion, cfg.forceUpdate.minVersion) < 0
     }
 
     suspend fun fetch() {
         try {
-            _config.value = APIService.fetchConfig()
+            _config.value = apiService.fetchConfig()
         } catch (e: Exception) {
             println("⚠️ AppConfig fetch failed: $e")
-            // Non-fatal — app proceeds without remote config
         } finally {
             _isLoaded.value = true
         }

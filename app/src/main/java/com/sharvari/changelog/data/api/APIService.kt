@@ -1,143 +1,107 @@
 package com.sharvari.changelog.data.api
 
-import com.sharvari.changelog.BuildConfig
 import com.sharvari.changelog.data.model.AppConfig
+import com.sharvari.changelog.data.model.ArticlesQuery
 import com.sharvari.changelog.data.model.ArticlesResponse
 import com.sharvari.changelog.data.model.CategoriesResponse
+import com.sharvari.changelog.data.model.DeviceRegisterRequest
 import com.sharvari.changelog.data.model.DeviceRegisterResponse
-import com.sharvari.changelog.data.model.ServerStats
+import com.sharvari.changelog.data.model.FCMTokenRequest
+import com.sharvari.changelog.data.model.FeedbackRequest
 import com.sharvari.changelog.data.model.StatsDelta
+import com.sharvari.changelog.data.model.StatsSyncRequest
 import com.sharvari.changelog.data.model.StatsResponse
-import com.sharvari.changelog.data.store.DeviceTokenStore
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logger
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.get
-import io.ktor.client.request.headers
-import io.ktor.client.request.parameter
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
+import com.sharvari.changelog.data.model.SuccessResponse
 import kotlinx.serialization.json.Json
 
-sealed class APIError : Exception() {
-    object NotRegistered  : APIError()
-    object Unauthorized   : APIError()
-    object InvalidURL     : APIError()
-    data class ServerError(val code: Int) : APIError()
-    data class NetworkError(override val cause: Throwable) : APIError()
-    data class DecodingError(override val cause: Throwable) : APIError()
-}
+// Thin façade — one public method per endpoint.
+// All business logic lives in DeviceService / StatsStore.
+// This class owns NO state and performs NO side effects beyond HTTP.
 
-object APIService {
+class APIService(
+    private val client: APIClientProtocol = APIClient.shared,
+) {
 
-    private val baseURL = BuildConfig.BASE_URL
+    companion object {
+        val shared = APIService()
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
-    }
+        private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-    private val client = HttpClient(Android) {
-        install(ContentNegotiation) { json(json) }
-        install(Logging) {
-            logger = object : Logger { override fun log(message: String) { println("🌐 $message") } }
-            level = LogLevel.INFO
+        private inline fun <reified T> deserializer(): suspend (ByteArray) -> T = { bytes ->
+            json.decodeFromString(bytes.decodeToString())
         }
-        engine { connectTimeout = 15_000; socketTimeout = 30_000 }
     }
 
-    // ── Fetch Articles ──────────────────────────────────────────────────────
+    // ── Articles ──────────────────────────────────────────────────────────────
+
     suspend fun fetchArticles(
         category: String? = null,
-        exclude: List<String> = emptyList(),
-        limit: Int = 20,
-        offset: Int = 0,
-    ): ArticlesResponse {
-        val token = DeviceTokenStore.token ?: throw APIError.NotRegistered
+        exclude:  List<String> = emptyList(),
+        limit:    Int = 20,
+        offset:   Int = 0,
+    ): ArticlesResponse = client.request(
+        APIRouter.Articles(ArticlesQuery(category, exclude, limit, offset)),
+        deserializer()
+    )
 
-        val response = client.get("$baseURL/articles") {
-            headers { append("X-Device-Token", token); append("Accept", "application/json") }
-            parameter("limit", limit)
-            parameter("offset", offset)
-            if (category != null) parameter("category", category)
-            if (exclude.isNotEmpty()) parameter("exclude", exclude.joinToString(","))
-        }
+    // ── Categories ────────────────────────────────────────────────────────────
 
-        return when (response.status) {
-            HttpStatusCode.OK -> response.body()
-            HttpStatusCode.Unauthorized -> {
-                DeviceTokenStore.clearToken()
-                throw APIError.Unauthorized
-            }
-            else -> throw APIError.ServerError(response.status.value)
-        }
+    suspend fun fetchCategories(): CategoriesResponse =
+        client.request(APIRouter.Categories, deserializer())
+
+    // ── Device Registration ───────────────────────────────────────────────────
+
+    suspend fun registerDevice(
+        appVersion: String,
+        fcmToken:   String?,
+    ): DeviceRegisterResponse = client.request(
+        APIRouter.RegisterDevice(
+            DeviceRegisterRequest(
+                platform   = "android",
+                appVersion = appVersion,
+                fcmToken   = fcmToken,
+            )
+        ),
+        deserializer()
+    )
+
+    // ── FCM Token Update ──────────────────────────────────────────────────────
+
+    suspend fun updateFCMToken(fcmToken: String): SuccessResponse = client.request(
+        APIRouter.UpdateFCMToken(FCMTokenRequest(fcmToken = fcmToken)),
+        deserializer()
+    )
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    suspend fun fetchStats(): StatsResponse =
+        client.request(APIRouter.FetchStats, deserializer())
+
+    suspend fun syncStats(delta: StatsDelta): Unit = client.request(
+        APIRouter.SyncStats(
+            StatsSyncRequest(
+                reads          = delta.reads,
+                skips          = delta.skips,
+                sessions       = delta.sessions,
+                readSeconds    = delta.readSeconds,
+                sessionSeconds = delta.sessionSeconds,
+            )
+        ),
+        deserializer<SuccessResponse>()  // response discarded
+    ).let {}
+
+    // ── Feedback ──────────────────────────────────────────────────────────────
+
+    suspend fun submitFeedback(type: String, message: String): Unit {
+        val slug = type.lowercase().replace(" report", "")
+        client.request(
+            APIRouter.SubmitFeedback(FeedbackRequest(type = slug, message = message, platform = "android")),
+            deserializer<SuccessResponse>()
+        )
     }
 
-    // ── Fetch Categories ────────────────────────────────────────────────────
-    suspend fun fetchCategories(): CategoriesResponse {
-        val token = DeviceTokenStore.token ?: throw APIError.NotRegistered
-        val response = client.get("$baseURL/categories") {
-            headers { append("X-Device-Token", token); append("Accept", "application/json") }
-        }
-        return response.body()
-    }
+    // ── App Config ────────────────────────────────────────────────────────────
 
-    // ── Register Device ─────────────────────────────────────────────────────
-    suspend fun registerDevice(appVersion: String): DeviceRegisterResponse {
-        val response = client.post("$baseURL/devices/register") {
-            contentType(ContentType.Application.Json)
-            setBody(mapOf("platform" to "android", "app_version" to appVersion))
-        }
-        return response.body()
-    }
-
-    // ── Fetch Stats ─────────────────────────────────────────────────────────
-    suspend fun fetchStats(token: String): StatsResponse {
-        val response = client.get("$baseURL/devices/stats") {
-            headers { append("X-Device-Token", token) }
-        }
-        return response.body()
-    }
-
-    // ── Sync Stats ──────────────────────────────────────────────────────────
-    suspend fun syncStats(token: String, delta: StatsDelta) {
-        client.post("$baseURL/devices/stats/sync") {
-            headers { append("X-Device-Token", token) }
-            contentType(ContentType.Application.Json)
-            setBody(mapOf(
-                "reads"           to delta.reads,
-                "skips"           to delta.skips,
-                "sessions"        to delta.sessions,
-                "read_seconds"    to delta.readSeconds,
-                "session_seconds" to delta.sessionSeconds,
-            ))
-        }
-    }
-
-    // ── Submit Feedback ─────────────────────────────────────────────────────
-    suspend fun submitFeedback(type: String, message: String) {
-        val token = DeviceTokenStore.token ?: return
-        val typeSlug = type.lowercase().replace(" report", "")
-        client.post("$baseURL/feedback") {
-            headers { append("X-Device-Token", token) }
-            contentType(ContentType.Application.Json)
-            setBody(mapOf("type" to typeSlug, "message" to message, "platform" to "android"))
-        }
-    }
-
-    // ── App Config ──────────────────────────────────────────────────────────
-    suspend fun fetchConfig(): AppConfig {
-        val response = client.get("$baseURL/config") {
-            headers { append("Accept", "application/json") }
-        }
-        return response.body()
-    }
+    suspend fun fetchConfig(): AppConfig =
+        client.request(APIRouter.AppConfig, deserializer())
 }

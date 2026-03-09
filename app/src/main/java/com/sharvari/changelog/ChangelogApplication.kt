@@ -11,6 +11,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import com.sharvari.changelog.data.store.CategoryStore
 import com.sharvari.changelog.data.store.DeviceTokenStore
+import com.sharvari.changelog.data.store.FcmTokenStore
 import com.sharvari.changelog.data.store.ReadArticlesStore
 import com.sharvari.changelog.data.store.StatsStore
 import com.google.android.gms.ads.MobileAds
@@ -25,7 +26,18 @@ class ChangelogApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Browser User-Agent — CDNs like Cloudflare/CoinTelegraph block "coil/3.x"
+        // DeviceTokenStore and FcmTokenStore use SharedPreferences (synchronous).
+        // Init just provides context — no async needed, no race condition.
+        DeviceTokenStore.init(applicationContext)
+        FcmTokenStore.init(applicationContext)
+
+        // Remaining stores use DataStore (async) — init on IO thread.
+        CoroutineScope(Dispatchers.IO).launch {
+            StatsStore.init(applicationContext)
+            CategoryStore.init(applicationContext)
+            ReadArticlesStore.init(applicationContext)
+        }
+
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(Interceptor { chain ->
                 chain.proceed(
@@ -45,12 +57,9 @@ class ChangelogApplication : Application() {
             .followSslRedirects(true)
             .build()
 
-        // Coil 3.x uses SingletonImageLoader.setSafe
         SingletonImageLoader.setSafe {
             ImageLoader.Builder(this)
-                .components {
-                    add(OkHttpNetworkFetcherFactory(callFactory = okHttpClient))
-                }
+                .components { add(OkHttpNetworkFetcherFactory(callFactory = okHttpClient)) }
                 .memoryCache {
                     MemoryCache.Builder()
                         .maxSizePercent(this@ChangelogApplication, 0.25)
@@ -67,12 +76,5 @@ class ChangelogApplication : Application() {
         }
 
         MobileAds.initialize(this)
-
-        CoroutineScope(Dispatchers.IO).launch {
-            DeviceTokenStore.init(applicationContext)
-            StatsStore.init(applicationContext)
-            CategoryStore.init(applicationContext)
-            ReadArticlesStore.init(applicationContext)
-        }
     }
 }

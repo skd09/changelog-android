@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.sharvari.changelog.data.model.ServerStats
 import com.sharvari.changelog.data.model.StatsDelta
+import com.sharvari.changelog.data.service.DeviceService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,7 +41,7 @@ object StatsStore {
     private var pendingDelta = StatsDelta()
     private lateinit var appContext: Context
 
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // ── Init ──────────────────────────────────────────────────────────────────
     suspend fun init(context: Context) {
         appContext = context.applicationContext
         loadFromLocal()
@@ -107,13 +108,12 @@ object StatsStore {
 
     fun flushToServer() {
         val delta = pendingDelta
-        if (delta.reads == 0 && delta.skips == 0 && delta.sessions == 0 &&
-            delta.readSeconds == 0 && delta.sessionSeconds == 0) return
+        if (delta.isEmpty) return
         pendingDelta = StatsDelta()
-        DeviceTokenStore.syncStats(delta)
+        DeviceService.shared.syncStats(delta)  // ← now goes through DeviceService, not DeviceTokenStore
     }
 
-    // ── Local load ────────────────────────────────────────────────────────────
+    // ── Local ─────────────────────────────────────────────────────────────────
     private suspend fun loadFromLocal() {
         val prefs = appContext.statsDataStore.data.first()
         _totalReads.value    = prefs[TOTAL_READS]    ?: 0

@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 object AdManager {
 
     // Replace with real ad unit ID before release
-    private const val AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712" // test ID
+    private const val AD_UNIT_ID = "ca-app-pub-5701767605641071~1696951661" // test ID
 
     private var interstitialAd: InterstitialAd? = null
     private val _isAdReady = MutableStateFlow(false)

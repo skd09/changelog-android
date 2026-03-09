@@ -1,6 +1,9 @@
 package com.sharvari.changelog.ui.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -122,7 +125,29 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                 }
 
                 item { SettingsSectionHeader("SPREAD THE WORD") }
-                item { SettingsRow(icon = Icons.Default.Share, label = "Share with a friend") { } }
+                item {
+                    SettingsRow(icon = Icons.Default.Share, label = "Share with a friend") {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "https://play.google.com/store/apps/details?id=com.sharvari.changelog")
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share The Changelog"))
+                    }
+                }
+//                item {
+//                    SettingsRow(icon = Icons.Default.Share, label = "Share with a friend") {
+//                        val packageName = "com.sharvari.changelog"
+//                        try {
+//                            context.startActivity(
+//                                Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName"))
+//                            )
+//                        } catch (e: ActivityNotFoundException) {
+//                            context.startActivity(
+//                                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$packageName"))
+//                            )
+//                        }
+//                    }
+//                }
                 item {
                     SettingsRow(icon = Icons.Default.Star, label = "Rate on Play Store") {
                         uriHandler.openUri("market://details?id=com.sharvari.changelog")
@@ -581,7 +606,7 @@ fun FeedbackSheet(onDismiss: () -> Unit) {
                                     onClick = {
                                         isSending = true
                                         scope.launch {
-                                            APIService.submitFeedback(type.name.lowercase(), text)
+                                            APIService.shared.submitFeedback(type.name.lowercase(), text)
                                             submitted = true
                                             isSending = false
                                         }
