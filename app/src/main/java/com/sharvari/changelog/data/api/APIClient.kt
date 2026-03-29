@@ -13,6 +13,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -54,10 +55,8 @@ class APIClient(
     companion object {
         val shared = APIClient()
 
-        // BASE_URL already ends with /api/v1 (set in build.gradle buildConfigField).
-        // AppConfig is the only route that strips /v1 — handled by replacing the suffix.
-        private val baseURL    = BuildConfig.BASE_URL          // e.g. https://host/api/v1
-        private val baseURLRaw = baseURL.removeSuffix("/v1")   // e.g. https://host/api
+        private val baseURL    = BuildConfig.BASE_URL
+        private val baseURLRaw = baseURL.removeSuffix("/v1")
 
         private val json = Json {
             ignoreUnknownKeys = true
@@ -79,7 +78,6 @@ class APIClient(
     private var isRetryingAfter401 = false
 
     override suspend fun <T> request(route: APIRouter, deserialize: suspend (ByteArray) -> T): T {
-        // AppConfig lives at /api/config (no /v1); all others live at /api/v1/...
         val base      = if (route is APIRouter.AppConfig) baseURLRaw else baseURL
         val urlString = base + route.path
 
@@ -87,6 +85,14 @@ class APIClient(
 
         val response = when (route.method) {
             HttpMethod.POST -> httpClient.post(urlString) {
+                if (route.requiresAuth) {
+                    val token = tokenProvider.token ?: throw APIError.NotRegistered
+                    headers { append("X-Device-Token", token) }
+                }
+                headers { append("Accept", "application/json") }
+                route.body?.let { contentType(ContentType.Application.Json); setBody(it) }
+            }
+            HttpMethod.PUT -> httpClient.put(urlString) {
                 if (route.requiresAuth) {
                     val token = tokenProvider.token ?: throw APIError.NotRegistered
                     headers { append("X-Device-Token", token) }

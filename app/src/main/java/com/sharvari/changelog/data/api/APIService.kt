@@ -8,6 +8,7 @@ import com.sharvari.changelog.data.model.DeviceRegisterRequest
 import com.sharvari.changelog.data.model.DeviceRegisterResponse
 import com.sharvari.changelog.data.model.FCMTokenRequest
 import com.sharvari.changelog.data.model.FeedbackRequest
+import com.sharvari.changelog.data.model.NotificationPreferencesRequest
 import com.sharvari.changelog.data.model.StatsDelta
 import com.sharvari.changelog.data.model.StatsSyncRequest
 import com.sharvari.changelog.data.model.StatsResponse
@@ -44,6 +45,16 @@ class APIService(
         deserializer()
     )
 
+    // ── Trending ──────────────────────────────────────────────────────────────
+
+    suspend fun fetchTrending(): ArticlesResponse =
+        client.request(APIRouter.Trending, deserializer())
+
+    // ── Search ────────────────────────────────────────────────────────────────
+
+    suspend fun searchArticles(query: String): ArticlesResponse =
+        client.request(APIRouter.Search(query), deserializer())
+
     // ── Categories ────────────────────────────────────────────────────────────
 
     suspend fun fetchCategories(): CategoriesResponse =
@@ -69,6 +80,23 @@ class APIService(
 
     suspend fun updateFCMToken(fcmToken: String): SuccessResponse = client.request(
         APIRouter.UpdateFCMToken(FCMTokenRequest(fcmToken = fcmToken)),
+        deserializer()
+    )
+
+    // ── Notification Preferences ──────────────────────────────────────────────
+
+    suspend fun updateNotificationPreferences(
+        frequency:   String,
+        time:        String,
+        categoryIds: List<String>?,
+    ): SuccessResponse = client.request(
+        APIRouter.UpdateNotificationPreferences(
+            NotificationPreferencesRequest(
+                frequency   = frequency,
+                time        = time,
+                categoryIds = categoryIds?.ifEmpty { null },
+            )
+        ),
         deserializer()
     )
 

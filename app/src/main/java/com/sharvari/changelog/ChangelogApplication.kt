@@ -15,6 +15,7 @@ import com.sharvari.changelog.data.store.FcmTokenStore
 import com.sharvari.changelog.data.store.ReadArticlesStore
 import com.sharvari.changelog.data.store.StatsStore
 import com.google.android.gms.ads.MobileAds
+import com.sharvari.changelog.data.store.BookmarkStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,6 +31,7 @@ class ChangelogApplication : Application() {
         // Init just provides context — no async needed, no race condition.
         DeviceTokenStore.init(applicationContext)
         FcmTokenStore.init(applicationContext)
+        BookmarkStore.init(applicationContext)
 
         // Remaining stores use DataStore (async) — init on IO thread.
         CoroutineScope(Dispatchers.IO).launch {

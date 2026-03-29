@@ -17,6 +17,7 @@ playServicesAds = "23.5.0"
 splashscreen = "1.0.1"
 firebaseMessaging = "24.1.0"
 googleServices = "4.4.2"
+animationCore = "1.10.5"
 
 [libraries]
 androidx-core-ktx                    = { group = "androidx.core",                      name = "core-ktx",                          version.ref = "coreKtx" }
@@ -45,6 +46,7 @@ kotlinx-coroutines-android           = { group = "org.jetbrains.kotlinx",       
 play-services-ads                    = { group = "com.google.android.gms",             name = "play-services-ads",                 version.ref = "playServicesAds" }
 androidx-splashscreen                = { group = "androidx.core",                       name = "core-splashscreen",                 version.ref = "splashscreen" }
 firebase-messaging                   = { group = "com.google.firebase",                name = "firebase-messaging-ktx",            version.ref = "firebaseMessaging" }
+androidx-compose-animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCore" }
 
 [plugins]
 android-application       = { id = "com.android.application",                   version.ref = "agp" }

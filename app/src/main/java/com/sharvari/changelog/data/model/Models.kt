@@ -100,6 +100,13 @@ data class FeedbackRequest(
     val platform: String,
 )
 
+@Serializable
+data class NotificationPreferencesRequest(
+    @SerialName("frequency")    val frequency: String,
+    @SerialName("time")         val time: String,
+    @SerialName("category_ids") val categoryIds: List<String>?,
+)
+
 // ── Query params (not serialized — used to build URL) ─────────────────────────
 
 data class ArticlesQuery(

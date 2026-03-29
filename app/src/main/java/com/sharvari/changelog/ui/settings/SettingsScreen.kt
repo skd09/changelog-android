@@ -61,9 +61,10 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(onDismiss: () -> Unit) {
-    var showFeedback     by remember { mutableStateOf(false) }
-    var showClearHistory by remember { mutableStateOf(false) }
-    var showChannels     by remember { mutableStateOf(false) }
+    var showFeedback              by remember { mutableStateOf(false) }
+    var showClearHistory          by remember { mutableStateOf(false) }
+    var showChannels              by remember { mutableStateOf(false) }
+    var showNotificationPrefs     by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     val context    = LocalContext.current
 
@@ -76,7 +77,6 @@ fun SettingsScreen(onDismiss: () -> Unit) {
     }
 
     CyberBackground {
-        // Cyber grid overlay — matches iOS CyberGridView().opacity(0.03)
         CyberSettingsGrid(modifier = Modifier.fillMaxSize())
 
         Scaffold(
@@ -111,12 +111,14 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                 modifier            = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .navigationBarsPadding()
                     .padding(horizontal = AppSpacing.sm),
                 verticalArrangement = Arrangement.spacedBy(AppSpacing.sm),
             ) {
                 item { StatsSection() }
                 item { Spacer(Modifier.height(AppSpacing.sm)) }
 
+                // ── Channels ──────────────────────────────────────────────────
                 item { SettingsSectionHeader("CHANNELS") }
                 item {
                     SettingsRow(icon = Icons.Default.Settings, label = "Manage channels") {
@@ -124,6 +126,15 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                     }
                 }
 
+                // ── Notifications ─────────────────────────────────────────────
+                item { SettingsSectionHeader("NOTIFICATIONS") }
+                item {
+                    SettingsRow(icon = Icons.Default.Notifications, label = "Notification preferences") {
+                        showNotificationPrefs = true
+                    }
+                }
+
+                // ── Spread the word ───────────────────────────────────────────
                 item { SettingsSectionHeader("SPREAD THE WORD") }
                 item {
                     SettingsRow(icon = Icons.Default.Share, label = "Share with a friend") {
@@ -134,26 +145,17 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                         context.startActivity(Intent.createChooser(intent, "Share The Changelog"))
                     }
                 }
-//                item {
-//                    SettingsRow(icon = Icons.Default.Share, label = "Share with a friend") {
-//                        val packageName = "com.sharvari.changelog"
-//                        try {
-//                            context.startActivity(
-//                                Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName"))
-//                            )
-//                        } catch (e: ActivityNotFoundException) {
-//                            context.startActivity(
-//                                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$packageName"))
-//                            )
-//                        }
-//                    }
-//                }
                 item {
                     SettingsRow(icon = Icons.Default.Star, label = "Rate on Play Store") {
-                        uriHandler.openUri("market://details?id=com.sharvari.changelog")
+                        try {
+                            uriHandler.openUri("market://details?id=com.sharvari.changelog")
+                        } catch (e: ActivityNotFoundException) {
+                            uriHandler.openUri("https://play.google.com/store/apps/details?id=com.sharvari.changelog")
+                        }
                     }
                 }
 
+                // ── Feedback ──────────────────────────────────────────────────
                 item { SettingsSectionHeader("FEEDBACK") }
                 item { SettingsRow(icon = Icons.Default.Mail, label = "Send feedback") { showFeedback = true } }
                 item {
@@ -162,6 +164,7 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                     }
                 }
 
+                // ── Reading ───────────────────────────────────────────────────
                 item { SettingsSectionHeader("READING") }
                 item {
                     SettingsRow(
@@ -171,6 +174,7 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                     ) { showClearHistory = true }
                 }
 
+                // ── App ───────────────────────────────────────────────────────
                 item { SettingsSectionHeader("APP") }
                 item {
                     Row(
@@ -199,6 +203,7 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                     }
                 }
 
+                // ── Legal ─────────────────────────────────────────────────────
                 item { SettingsSectionHeader("LEGAL") }
                 item {
                     SettingsRow(icon = Icons.Default.Lock, label = "Privacy Policy") {
@@ -216,8 +221,9 @@ fun SettingsScreen(onDismiss: () -> Unit) {
         }
     }
 
-    if (showFeedback)     FeedbackSheet(onDismiss = { showFeedback = false })
-    if (showChannels)     ChannelPickerDialog(onDismiss = { showChannels = false })
+    if (showFeedback)          FeedbackSheet(onDismiss = { showFeedback = false })
+    if (showChannels)          ChannelPickerDialog(onDismiss = { showChannels = false })
+    if (showNotificationPrefs) NotificationPreferencesScreen(onDismiss = { showNotificationPrefs = false })
 
     if (showClearHistory) {
         AlertDialog(
@@ -240,7 +246,7 @@ fun SettingsScreen(onDismiss: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ChannelPickerDialog — matches iOS CategoryPickerSheet
+// ChannelPickerDialog
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -263,7 +269,6 @@ private fun ChannelPickerDialog(onDismiss: () -> Unit) {
                     .fillMaxSize()
                     .statusBarsPadding(),
             ) {
-                // Top bar
                 Row(
                     modifier          = Modifier
                         .fillMaxWidth()
@@ -272,19 +277,10 @@ private fun ChannelPickerDialog(onDismiss: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onDismiss) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint               = AppColors.neon,
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppColors.neon)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text(
-                        "MANAGE CHANNELS",
-                        style         = AppTypography.label,
-                        color         = AppColors.neon,
-                        letterSpacing = AppTypography.trackingWide,
-                    )
+                    Text("MANAGE CHANNELS", style = AppTypography.label, color = AppColors.neon, letterSpacing = AppTypography.trackingWide)
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = {
                         if (n == ALL_CATEGORIES.size) CategoryStore.clearAll()
@@ -299,17 +295,13 @@ private fun ChannelPickerDialog(onDismiss: () -> Unit) {
                     }
                 }
 
-                // Grid — LazyVerticalGrid owns all scrolling
                 LazyVerticalGrid(
                     columns               = GridCells.Fixed(2),
-                    modifier              = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = AppSpacing.md),
+                    modifier              = Modifier.fillMaxSize().padding(horizontal = AppSpacing.md),
                     verticalArrangement   = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding        = PaddingValues(bottom = AppSpacing.xxl),
                 ) {
-                    // Header — matches iOS "YOUR CHANNELS" + subtitle
                     item(span = { GridItemSpan(2) }) {
                         Column(modifier = Modifier.padding(vertical = AppSpacing.sm)) {
                             Text(
@@ -329,12 +321,9 @@ private fun ChannelPickerDialog(onDismiss: () -> Unit) {
                         }
                     }
 
-                    // Badge + select/clear row
                     item(span = { GridItemSpan(2) }) {
                         Row(
-                            modifier          = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = AppSpacing.sm),
+                            modifier          = Modifier.fillMaxWidth().padding(bottom = AppSpacing.sm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             CyberBadge(
@@ -359,52 +348,39 @@ private fun ChannelPickerDialog(onDismiss: () -> Unit) {
                         }
                     }
 
-                    // Category cards — Icon circles, matches iOS CategoryCard
                     items(ALL_CATEGORIES) { cat ->
                         val isSelected  = cat.slug in selectedSlugs
                         val accent      = AppColors.categoryAccent(cat.slug)
                         val bgColor     by animateColorAsState(
-                            if (isSelected) accent.copy(alpha = 0.12f) else AppColors.surfaceHigh,
-                            label = "bg${cat.slug}",
-                        )
+                            if (isSelected) accent.copy(alpha = 0.12f) else AppColors.surfaceHigh, label = "bg${cat.slug}")
                         val borderColor by animateColorAsState(
-                            if (isSelected) accent.copy(alpha = 0.5f) else AppColors.divider,
-                            label = "border${cat.slug}",
-                        )
+                            if (isSelected) accent.copy(alpha = 0.5f) else AppColors.divider, label = "border${cat.slug}")
 
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(100.dp)
                                 .clip(RoundedCornerShape(AppRadius.md))
-                                .background(bgColor, RoundedCornerShape(AppRadius.md))
+                                .background(bgColor)
                                 .border(1.dp, borderColor, RoundedCornerShape(AppRadius.md))
                                 .clickable { CategoryStore.toggle(cat.slug) }
                                 .padding(12.dp),
                         ) {
                             Box(
-                                modifier         = Modifier
+                                modifier = Modifier
                                     .size(40.dp)
                                     .align(Alignment.TopStart)
                                     .background(accent.copy(alpha = 0.15f), CircleShape)
                                     .border(1.dp, accent.copy(alpha = 0.3f), CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(
-                                    imageVector        = categoryIcon(cat.slug),
-                                    contentDescription = null,
-                                    tint               = accent,
-                                    modifier           = Modifier.size(20.dp),
-                                )
+                                Icon(categoryIcon(cat.slug), null, tint = accent, modifier = Modifier.size(20.dp))
                             }
                             if (isSelected) {
                                 Icon(
-                                    imageVector        = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint               = accent,
-                                    modifier           = Modifier
-                                        .size(22.dp)
-                                        .align(Alignment.TopEnd),
+                                    Icons.Default.CheckCircle, null,
+                                    tint     = accent,
+                                    modifier = Modifier.size(22.dp).align(Alignment.TopEnd),
                                 )
                             }
                             Text(
@@ -418,14 +394,11 @@ private fun ChannelPickerDialog(onDismiss: () -> Unit) {
                         }
                     }
 
-                    // Done button
                     item(span = { GridItemSpan(2) }) {
                         CyberButton(
                             label    = "DONE",
                             onClick  = onDismiss,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = AppSpacing.sm),
+                            modifier = Modifier.fillMaxWidth().padding(top = AppSpacing.sm),
                         )
                     }
                 }
@@ -435,7 +408,7 @@ private fun ChannelPickerDialog(onDismiss: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FeedbackSheet — matches iOS FeedbackSheet
+// FeedbackSheet
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum class FeedbackType(val label: String, val icon: ImageVector) {
@@ -468,61 +441,36 @@ fun FeedbackSheet(onDismiss: () -> Unit) {
                     .statusBarsPadding()
                     .imePadding(),
             ) {
-                // Top bar — CANCEL left, FEEDBACK centre (matches iOS)
                 Row(
-                    modifier          = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(horizontal = 4.dp),
+                    modifier          = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(
-                            "CANCEL",
-                            style         = AppTypography.caption,
-                            color         = AppColors.textSecondary,
-                            letterSpacing = AppTypography.trackingWide,
-                        )
+                        Text("CANCEL", style = AppTypography.caption, color = AppColors.textSecondary, letterSpacing = AppTypography.trackingWide)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text(
-                        "FEEDBACK",
-                        style         = AppTypography.label,
-                        color         = AppColors.neon,
-                        letterSpacing = AppTypography.trackingXWide,
-                    )
+                    Text("FEEDBACK", style = AppTypography.label, color = AppColors.neon, letterSpacing = AppTypography.trackingXWide)
                     Spacer(Modifier.weight(1f))
                     Spacer(Modifier.width(72.dp))
                 }
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
                 ) {
                     if (submitted) {
                         Column(
-                            modifier            = Modifier
-                                .fillMaxWidth()
-                                .padding(AppSpacing.xxl),
+                            modifier            = Modifier.fillMaxWidth().padding(AppSpacing.xxl),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
                         ) {
                             Spacer(Modifier.height(AppSpacing.xxl))
                             Box(
-                                modifier         = Modifier
-                                    .size(88.dp)
+                                modifier         = Modifier.size(88.dp)
                                     .background(AppColors.neon.copy(alpha = 0.1f), CircleShape)
                                     .border(1.dp, AppColors.neon.copy(alpha = 0.35f), CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint     = AppColors.neon,
-                                    modifier = Modifier.size(36.dp),
-                                )
+                                Icon(Icons.Default.Check, null, tint = AppColors.neon, modifier = Modifier.size(36.dp))
                             }
                             Text("THANKS!", style = AppTypography.label, color = AppColors.neon, letterSpacing = AppTypography.trackingXWide)
                             Text("Your feedback helps us improve.", style = AppTypography.body, color = AppColors.textSecondary)
@@ -530,23 +478,15 @@ fun FeedbackSheet(onDismiss: () -> Unit) {
                             CyberButton(label = "CLOSE", onClick = onDismiss, modifier = Modifier.fillMaxWidth())
                         }
                     } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = AppSpacing.lg),
-                        ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.lg)) {
                             Spacer(Modifier.height(AppSpacing.md))
-
-                            // Type picker — Icon + label
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FeedbackType.entries.forEach { t ->
                                     val isActive = t == type
-                                    val bg by animateColorAsState(
-                                        if (isActive) AppColors.neon else AppColors.surfaceHigh, label = "bg")
-                                    val tc by animateColorAsState(
-                                        if (isActive) AppColors.background else AppColors.textSecondary, label = "tc")
+                                    val bg by animateColorAsState(if (isActive) AppColors.neon else AppColors.surfaceHigh, label = "bg")
+                                    val tc by animateColorAsState(if (isActive) AppColors.background else AppColors.textSecondary, label = "tc")
                                     Row(
-                                        modifier          = Modifier
+                                        modifier = Modifier
                                             .background(bg, RoundedCornerShape(AppRadius.pill))
                                             .border(1.dp, if (isActive) AppColors.neon else AppColors.divider, RoundedCornerShape(AppRadius.pill))
                                             .clip(RoundedCornerShape(AppRadius.pill))
@@ -554,24 +494,18 @@ fun FeedbackSheet(onDismiss: () -> Unit) {
                                             .padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Icon(t.icon, contentDescription = null, tint = tc, modifier = Modifier.size(11.dp))
+                                        Icon(t.icon, null, tint = tc, modifier = Modifier.size(11.dp))
                                         Spacer(Modifier.width(5.dp))
                                         Text(t.label, style = AppTypography.mono9, color = tc, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
-
                             Spacer(Modifier.height(AppSpacing.lg))
-
                             OutlinedTextField(
                                 value         = text,
                                 onValueChange = { text = it },
                                 placeholder   = {
-                                    Text(
-                                        "Tell us what you think, report a bug, or suggest a feature...",
-                                        color = AppColors.textMuted,
-                                        style = AppTypography.body,
-                                    )
+                                    Text("Tell us what you think, report a bug, or suggest a feature...", color = AppColors.textMuted, style = AppTypography.body)
                                 },
                                 minLines = 6,
                                 modifier = Modifier.fillMaxWidth(),
@@ -583,18 +517,11 @@ fun FeedbackSheet(onDismiss: () -> Unit) {
                                     cursorColor          = AppColors.neon,
                                 ),
                             )
-
                             if (text.isNotEmpty() && !isValid) {
                                 Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "${10 - text.trim().length} more characters needed",
-                                    style = AppTypography.mono9,
-                                    color = AppColors.magenta.copy(alpha = 0.8f),
-                                )
+                                Text("${10 - text.trim().length} more characters needed", style = AppTypography.mono9, color = AppColors.magenta.copy(alpha = 0.8f))
                             }
-
                             Spacer(Modifier.height(AppSpacing.lg))
-
                             if (isSending) {
                                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                                     CircularProgressIndicator(Modifier.size(28.dp), color = AppColors.neon, strokeWidth = 2.dp)
@@ -614,7 +541,6 @@ fun FeedbackSheet(onDismiss: () -> Unit) {
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                             }
-
                             Spacer(Modifier.height(AppSpacing.md))
                             Spacer(Modifier.navigationBarsPadding())
                         }
@@ -626,7 +552,7 @@ fun FeedbackSheet(onDismiss: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CyberSettingsGrid — matches iOS CyberGridView().opacity(0.03)
+// CyberSettingsGrid
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -635,20 +561,14 @@ private fun CyberSettingsGrid(modifier: Modifier = Modifier) {
         val step = 40.dp.toPx()
         val neon = Color(0xFFBD93F9)
         var x = 0f
-        while (x <= size.width) {
-            drawLine(neon, Offset(x, 0f), Offset(x, size.height), strokeWidth = 0.5f)
-            x += step
-        }
+        while (x <= size.width) { drawLine(neon, Offset(x, 0f), Offset(x, size.height), strokeWidth = 0.5f); x += step }
         var y = 0f
-        while (y <= size.height) {
-            drawLine(neon, Offset(0f, y), Offset(size.width, y), strokeWidth = 0.5f)
-            y += step
-        }
+        while (y <= size.height) { drawLine(neon, Offset(0f, y), Offset(size.width, y), strokeWidth = 0.5f); y += step }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StatsSection
+// StatsSection (unchanged from original)
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -672,7 +592,6 @@ private fun StatsSection() {
             Spacer(Modifier.weight(1f))
             CyberBadge(text = rank.title, color = rank.color)
         }
-
         Spacer(Modifier.height(AppSpacing.sm))
 
         val fraction = run {
@@ -689,20 +608,13 @@ private fun StatsSection() {
                 Text("${(fraction * 100).toInt()}%", style = AppTypography.mono10, color = rank.color, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(4.dp))
-            Box(
-                modifier = Modifier.fillMaxWidth().height(5.dp)
-                    .background(AppColors.divider, RoundedCornerShape(AppRadius.pill))
-            ) {
+            Box(modifier = Modifier.fillMaxWidth().height(5.dp).background(AppColors.divider, RoundedCornerShape(AppRadius.pill))) {
                 Box(
                     modifier = Modifier.fillMaxWidth(animatedFraction).height(5.dp)
-                        .background(
-                            Brush.horizontalGradient(listOf(rank.color.copy(alpha = 0.7f), rank.color)),
-                            RoundedCornerShape(AppRadius.pill),
-                        )
+                        .background(Brush.horizontalGradient(listOf(rank.color.copy(alpha = 0.7f), rank.color)), RoundedCornerShape(AppRadius.pill))
                 )
             }
         }
-
         Spacer(Modifier.height(AppSpacing.sm))
 
         Row(
@@ -719,19 +631,17 @@ private fun StatsSection() {
                 Text(rank.description, style = AppTypography.body, color = AppColors.textSecondary)
             }
         }
-
         Spacer(Modifier.height(AppSpacing.md))
 
         data class StatEntry(val value: String, val label: String, val color: Color, val icon: ImageVector)
         val stats = listOf(
-            StatEntry("$totalReads",             "ARTICLES READ", AppColors.neon,             Icons.Default.MenuBook),
-            StatEntry("$totalSkips",             "SKIPPED",       AppColors.textSecondary,    Icons.Default.FastForward),
-            StatEntry(formatTime(avgReadTime),   "AVG READ TIME", Color(0xFF66CCFF),          Icons.Default.Timer),
-            StatEntry(formatTime(avgSessionTime),"AVG SESSION",   Color(0xFF9966FF),          Icons.Default.AccessTime),
-            StatEntry("$totalSessions",          "SESSIONS",      Color(0xFFFFB86C),          Icons.Default.LayersClear),
-            StatEntry(readRatio,                 "READ RATIO",    AppColors.magenta,          Icons.Default.BarChart),
+            StatEntry("$totalReads",             "ARTICLES READ", AppColors.neon,          Icons.Default.MenuBook),
+            StatEntry("$totalSkips",             "SKIPPED",       AppColors.textSecondary, Icons.Default.FastForward),
+            StatEntry(formatTime(avgReadTime),   "AVG READ TIME", Color(0xFF66CCFF),       Icons.Default.Timer),
+            StatEntry(formatTime(avgSessionTime),"AVG SESSION",   Color(0xFF9966FF),       Icons.Default.AccessTime),
+            StatEntry("$totalSessions",          "SESSIONS",      Color(0xFFFFB86C),       Icons.Default.LayersClear),
+            StatEntry(readRatio,                 "READ RATIO",    AppColors.magenta,       Icons.Default.BarChart),
         )
-
         stats.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { entry ->
@@ -752,37 +662,15 @@ private fun StatCard(value: String, label: String, color: Color, icon: ImageVect
             .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(AppRadius.md))
             .padding(14.dp),
     ) {
-        // Icon top-left + glow dot top-right — matches iOS StatCard
         Row(modifier = Modifier.fillMaxWidth()) {
-            Icon(
-                imageVector        = icon,
-                contentDescription = null,
-                tint               = color,
-                modifier           = Modifier.size(12.dp),
-            )
+            Icon(icon, null, tint = color, modifier = Modifier.size(12.dp))
             Spacer(Modifier.weight(1f))
-            // Glow dot
-            Box(
-                modifier = Modifier
-                    .size(5.dp)
-                    .background(color.copy(alpha = 0.6f), CircleShape)
-            )
+            Box(modifier = Modifier.size(5.dp).background(color.copy(alpha = 0.6f), CircleShape))
         }
         Spacer(Modifier.height(8.dp))
-        Text(
-            text       = value,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Black,
-            fontSize   = 24.sp,
-            color      = AppColors.textPrimary,
-        )
+        Text(value, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, fontSize = 24.sp, color = AppColors.textPrimary)
         Spacer(Modifier.height(2.dp))
-        Text(
-            text          = label,
-            style         = AppTypography.mono9,
-            color         = AppColors.textMuted,
-            letterSpacing = AppTypography.trackingWide,
-        )
+        Text(label, style = AppTypography.mono9, color = AppColors.textMuted, letterSpacing = AppTypography.trackingWide)
     }
 }
 
@@ -799,12 +687,7 @@ private fun SettingsSectionHeader(title: String) {
 }
 
 @Composable
-private fun SettingsRow(
-    icon:        ImageVector,
-    label:       String,
-    destructive: Boolean = false,
-    onClick:     () -> Unit,
-) {
+private fun SettingsRow(icon: ImageVector, label: String, destructive: Boolean = false, onClick: () -> Unit) {
     Row(
         modifier          = Modifier
             .fillMaxWidth()
@@ -851,13 +734,13 @@ data class ReaderRank(
 )
 
 fun readerRank(reads: Int): ReaderRank = when {
-    reads < 100   -> ReaderRank("Rookie",       "🌱", "Just getting started. Keep swiping!",               AppColors.textSecondary, 0,      100)
-    reads < 500   -> ReaderRank("Curious",      "👀", "You're picking up momentum.",                       Color(0xFF66CCFF),       100,    500)
-    reads < 2000  -> ReaderRank("Informed",     "📰", "A regular on the feed. Respect.",                   AppColors.neon,          500,    2000)
-    reads < 7500  -> ReaderRank("Tech Insider", "⚡", "You know things before others do.",                 Color(0xFF9966FF),       2000,   7500)
-    reads < 12000 -> ReaderRank("Signal Pro",   "🔥", "Cutting through noise like a pro.",                 Color(0xFFFF8019),       7500,   12000)
-    reads < 20000 -> ReaderRank("Cyber Oracle", "🔮", "You see the future in the feed.",                   AppColors.magenta,       12000,  20000)
-    else          -> ReaderRank("Legend",       "👑", "Nothing escapes your attention. You are the news.", Color(0xFFFFCC33),       20000,  99999)
+    reads < 100   -> ReaderRank("Rookie",       "🌱", "Just getting started. Keep swiping!",               AppColors.textSecondary, 0,     100)
+    reads < 500   -> ReaderRank("Curious",      "👀", "You're picking up momentum.",                       Color(0xFF66CCFF),       100,   500)
+    reads < 2000  -> ReaderRank("Informed",     "📰", "A regular on the feed. Respect.",                   AppColors.neon,          500,   2000)
+    reads < 7500  -> ReaderRank("Tech Insider", "⚡", "You know things before others do.",                 Color(0xFF9966FF),       2000,  7500)
+    reads < 12000 -> ReaderRank("Signal Pro",   "🔥", "Cutting through noise like a pro.",                 Color(0xFFFF8019),       7500,  12000)
+    reads < 20000 -> ReaderRank("Cyber Oracle", "🔮", "You see the future in the feed.",                   AppColors.magenta,       12000, 20000)
+    else          -> ReaderRank("Legend",       "👑", "Nothing escapes your attention. You are the news.", Color(0xFFFFCC33),       20000, 99999)
 }
 
 fun formatTime(s: Int): String = when {
