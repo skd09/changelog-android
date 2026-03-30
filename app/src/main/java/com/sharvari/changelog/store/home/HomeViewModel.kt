@@ -110,6 +110,9 @@ class HomeViewModel(
                 val currentIds    = articles.map { it.id }
                 val excludeIds    = (readStore.excludeList + currentIds).distinct()
 
+                Timber.d("loadArticles: token=%s, selectedSlugs=%d, excludeIds=%d",
+                    tokenStore.token?.take(10), selectedSlugs.size, excludeIds.size)
+
                 val result = repository.fetchArticles(
                     category = null,
                     exclude  = excludeIds,
@@ -117,10 +120,12 @@ class HomeViewModel(
 
                 result.fold(
                     onSuccess = { newArticles ->
+                        Timber.d("loadArticles: fetched %d articles from API", newArticles.size)
                         val filtered = newArticles.filter { article ->
                             val slug = article.category?.slug ?: return@filter true
                             selectedSlugs.contains(slug)
                         }
+                        Timber.d("loadArticles: %d after category filter", filtered.size)
                         articles.addAll(filtered)
                         _uiState.value = if (articles.isEmpty()) {
                             HomeUiState.Empty
@@ -129,6 +134,7 @@ class HomeViewModel(
                         }
                     },
                     onFailure = { e ->
+                        Timber.e(e, "loadArticles failed")
                         when (e) {
                             is APIError.Unauthorized -> {
                                 _uiState.value = if (articles.isEmpty()) {
@@ -138,7 +144,6 @@ class HomeViewModel(
                                 }
                             }
                             else -> {
-                                Timber.e("loadArticles error: %s", e)
                                 _uiState.value = if (articles.isEmpty()) {
                                     HomeUiState.Error("Could not load news. Check your connection.")
                                 } else {
@@ -149,7 +154,7 @@ class HomeViewModel(
                     }
                 )
             } catch (e: Exception) {
-                Timber.e("loadArticles error: %s", e)
+                Timber.e(e, "loadArticles outer catch")
                 _uiState.value = if (articles.isEmpty()) {
                     HomeUiState.Error("Could not load news. Check your connection.")
                 } else {

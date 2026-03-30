@@ -1,6 +1,7 @@
 package com.sharvari.changelog.utils
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -16,31 +17,30 @@ fun categoryIcon(slug: String?): ImageVector = when (slug) {
     "space"       -> Icons.Default.RocketLaunch
     "health"      -> Icons.Default.Favorite
     "open-source" -> Icons.Default.Code
-    else          -> Icons.Default.Article
+    else          -> Icons.AutoMirrored.Filled.Article
 }
 
-fun categoryAccentColor(slug: String?): Color = when (slug) {
-    "ai", "artificial-intelligence" -> Color(0xFF00FF9F)
-    "crypto", "blockchain"          -> Color(0xFFFFCC00)
-    "cybersecurity", "security"     -> Color(0xFFFF3348)
-    "gaming"                        -> Color(0xFF9933FF)
-    "science"                       -> Color(0xFF00CCFF)
-    "startups", "business"          -> Color(0xFFFF8000)
-    "health", "biotech"             -> Color(0xFF33E566)
-    "space"                         -> Color(0xFF6666FF)
-    "social-media"                  -> Color(0xFFFF4DCC)
-    "hardware", "gadgets"           -> Color(0xFFCCCCCC)
-    "technology"                    -> Color(0xFF00FF9F)
-    "open-source"                   -> Color(0xFF00CCFF)
-    else                            -> Color(0xFF00FF9F)
-}
+fun categoryAccentColor(slug: String?): Color =
+    com.sharvari.changelog.ui.theme.AppColors.categoryAccent(slug)
 
 fun timeAgo(isoDate: String): String {
     return try {
-        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.getDefault()).apply {
-            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        // Try with fractional seconds first, then without
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        )
+        var date: java.util.Date? = null
+        for (pattern in formats) {
+            try {
+                val fmt = java.text.SimpleDateFormat(pattern, java.util.Locale.US).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }
+                date = fmt.parse(isoDate)
+                if (date != null) break
+            } catch (_: Exception) { }
         }
-        val date = fmt.parse(isoDate) ?: return ""
+        if (date == null) return ""
         val diff = (System.currentTimeMillis() - date.time) / 1000
         when {
             diff < 60     -> "${diff}s ago"

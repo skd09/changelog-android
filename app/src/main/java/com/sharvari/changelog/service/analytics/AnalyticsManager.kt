@@ -24,7 +24,7 @@ object AnalyticsManager {
     fun sessionStarted() {
         sessionStart = System.currentTimeMillis()
         StatsStore.recordSession()
-        analytics?.logEvent("session_start") {}
+        analytics?.logEvent("app_session_start") {}
     }
 
     fun sessionEnded() {
@@ -32,7 +32,7 @@ object AnalyticsManager {
         val duration = ((System.currentTimeMillis() - start) / 1000).toInt()
         StatsStore.recordSessionTime(duration)
         StatsStore.flushToServer()
-        analytics?.logEvent("session_end") {
+        analytics?.logEvent("app_session_end") {
             param("duration_seconds", duration.toLong())
         }
         sessionStart = null

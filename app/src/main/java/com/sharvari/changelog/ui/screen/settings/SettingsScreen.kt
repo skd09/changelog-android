@@ -23,8 +23,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.store.article.ReadArticlesStore
+import com.sharvari.changelog.store.theme.ThemeMode
+import com.sharvari.changelog.store.theme.ThemeStore
 import com.sharvari.changelog.utils.RatingManager
 import com.sharvari.changelog.ui.components.CyberBackground
 import com.sharvari.changelog.ui.components.NeonBar
@@ -68,16 +71,6 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                             )
                         }
                     },
-                    actions = {
-                        TextButton(onClick = onDismiss) {
-                            Text(
-                                "DONE",
-                                style         = AppTypography.caption,
-                                color         = AppColors.neon,
-                                letterSpacing = AppTypography.trackingWide,
-                            )
-                        }
-                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 )
             }
@@ -92,6 +85,9 @@ fun SettingsScreen(onDismiss: () -> Unit) {
             ) {
                 item { StatsSection() }
                 item { Spacer(Modifier.height(AppSpacing.sm)) }
+
+                item { SectionHeader("APPEARANCE") }
+                item { ThemeSelector() }
 
                 item { SectionHeader("CHANNELS") }
                 item { SettingsRow(icon = Icons.Default.Settings, label = "Manage channels") { showChannels = true } }
@@ -201,6 +197,45 @@ private fun SectionHeader(title: String) {
         NeonBar(7.dp)
         Spacer(Modifier.width(6.dp))
         Text(title, style = AppTypography.mono9, color = AppColors.neon, letterSpacing = AppTypography.trackingWide)
+    }
+}
+
+@Composable
+private fun ThemeSelector() {
+    val currentMode by ThemeStore.mode.collectAsStateWithLifecycle()
+    val options = listOf(ThemeMode.SYSTEM to "System", ThemeMode.LIGHT to "Light", ThemeMode.DARK to "Dark")
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AppColors.surfaceHigh, RoundedCornerShape(AppRadius.md))
+            .border(1.dp, AppColors.divider, RoundedCornerShape(AppRadius.md))
+            .padding(AppSpacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
+    ) {
+        options.forEach { (mode, label) ->
+            val selected = currentMode == mode
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(AppRadius.sm))
+                    .then(
+                        if (selected) Modifier.background(AppColors.neon.copy(alpha = 0.15f), RoundedCornerShape(AppRadius.sm))
+                            .border(1.dp, AppColors.neon.copy(alpha = 0.4f), RoundedCornerShape(AppRadius.sm))
+                        else Modifier.clickable { ThemeStore.setMode(mode) }
+                    )
+                    .clickable { ThemeStore.setMode(mode) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text          = label,
+                    style         = AppTypography.mono11,
+                    color         = if (selected) AppColors.neon else AppColors.textSecondary,
+                    letterSpacing = AppTypography.trackingWide,
+                )
+            }
+        }
     }
 }
 

@@ -45,11 +45,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharvari.changelog.model.article.Article
 import com.sharvari.changelog.store.bookmark.BookmarkStore
+import com.sharvari.changelog.store.discover.SearchUiState
+import com.sharvari.changelog.store.discover.SearchViewModel
+import com.sharvari.changelog.store.discover.TrendingUiState
+import com.sharvari.changelog.store.discover.TrendingViewModel
 import com.sharvari.changelog.ui.theme.AppColors
 import com.sharvari.changelog.ui.theme.AppRadius
 import com.sharvari.changelog.ui.theme.AppSpacing
 import com.sharvari.changelog.ui.theme.AppTypography
-import com.sharvari.changelog.utils.categoryAccentColor
 import com.sharvari.changelog.utils.categoryIcon
 import com.sharvari.changelog.utils.timeAgo
 
@@ -67,26 +70,39 @@ enum class DiscoverSegment(val label: String, val icon: ImageVector, val filledI
 // DiscoverScreen
 // ─────────────────────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen() {
     var selectedSegment by remember { mutableStateOf(DiscoverSegment.TRENDING) }
     val focusManager = LocalFocusManager.current
 
+    Scaffold(
+        containerColor = AppColors.background,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "DISCOVER",
+                            style         = AppTypography.label,
+                            color         = AppColors.neon,
+                            letterSpacing = AppTypography.trackingXWide,
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppColors.background,
+                    scrolledContainerColor = AppColors.background,
+                ),
+            )
+        }
+    ) { padding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.background)
+            .padding(padding)
             .navigationBarsPadding()
     ) {
-        // Nav header
-        Box(
-            modifier = Modifier.fillMaxWidth().height(52.dp).background(AppColors.background),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("DISCOVER", style = AppTypography.label, color = AppColors.neon, letterSpacing = AppTypography.trackingXWide)
-        }
-        HorizontalDivider(color = AppColors.divider, thickness = 0.5.dp)
-
         // Segment control
         Row(
             modifier = Modifier
@@ -136,6 +152,7 @@ fun DiscoverScreen() {
             DiscoverSegment.SAVED    -> SavedContent()
         }
     }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,10 +172,10 @@ private fun TrendingContent(viewModel: TrendingViewModel = viewModel()) {
                 modifier = Modifier.fillMaxWidth().background(AppColors.surface).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                CategoryChip("ALL", selectedCategory == null, AppColors.neon) { selectedCategory = null; viewModel.filter(null) }
+                CategoryChip("ALL", selectedCategory == null, AppColors.neon, icon = Icons.Default.GridView) { selectedCategory = null; viewModel.filter(null) }
                 successState.categories.forEach { cat ->
-                    val color = categoryAccentColor(cat.slug)
-                    CategoryChip(cat.name.uppercase(), selectedCategory == cat.slug, color) { selectedCategory = cat.slug; viewModel.filter(cat.slug) }
+                    val color = AppColors.categoryAccent(cat.slug)
+                    CategoryChip(cat.name.uppercase(), selectedCategory == cat.slug, color, icon = categoryIcon(cat.slug)) { selectedCategory = cat.slug; viewModel.filter(cat.slug) }
                 }
             }
             HorizontalDivider(color = AppColors.divider, thickness = 0.5.dp)
@@ -208,14 +225,18 @@ private fun TrendingContent(viewModel: TrendingViewModel = viewModel()) {
 }
 
 @Composable
-private fun CategoryChip(label: String, isActive: Boolean, color: Color, onClick: () -> Unit) {
-    val bg by animateColorAsState(if (isActive) color else color.copy(alpha = 0.12f), label = "chip_bg")
-    val textColor by animateColorAsState(if (isActive) AppColors.background else color, label = "chip_txt")
-    val borderColor by animateColorAsState(if (isActive) color else color.copy(alpha = 0.4f), label = "chip_border")
-    Box(
+private fun CategoryChip(label: String, isActive: Boolean, color: Color, icon: ImageVector? = null, onClick: () -> Unit) {
+    val bg by animateColorAsState(if (isActive) color else color.copy(alpha = 0.08f), label = "chip_bg")
+    val textColor by animateColorAsState(if (isActive) AppColors.background else AppColors.textPrimary, label = "chip_txt")
+    val borderColor by animateColorAsState(if (isActive) color else AppColors.divider, label = "chip_border")
+    Row(
         modifier = Modifier.background(bg, RoundedCornerShape(100.dp)).border(1.dp, borderColor, RoundedCornerShape(100.dp)).clip(RoundedCornerShape(100.dp)).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        icon?.let {
+            Icon(it, null, tint = textColor, modifier = Modifier.size(10.dp))
+            Spacer(Modifier.width(4.dp))
+        }
         Text(label, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.sp, color = textColor)
     }
 }
@@ -230,44 +251,49 @@ private fun TrendingRow(article: Article, rank: Int, rankChange: Int, onTap: () 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier = Modifier.size(36.dp)
-                    .background(if (rank <= 3) AppColors.neon.copy(alpha = 0.15f) else AppColors.surface, RoundedCornerShape(8.dp))
-                    .border(1.dp, if (rank <= 3) AppColors.neon.copy(alpha = 0.4f) else AppColors.divider, RoundedCornerShape(8.dp)),
+                    .background(if (rank <= 3) AppColors.neon.copy(alpha = 0.12f) else AppColors.surfaceHigh, RoundedCornerShape(8.dp))
+                    .border(1.dp, if (rank <= 3) AppColors.neon else AppColors.divider, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("$rank", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, fontSize = if (rank <= 3) 15.sp else 13.sp, color = if (rank <= 3) AppColors.neon else AppColors.textMuted)
+                Text("$rank", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, fontSize = if (rank <= 3) 15.sp else 13.sp, color = if (rank <= 3) AppColors.neon else AppColors.textSecondary)
             }
             Spacer(Modifier.height(4.dp))
             when {
                 rankChange > 0 -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.ArrowUpward, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(8.dp))
-                    Text("$rankChange", fontFamily = FontFamily.Monospace, fontSize = 8.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.ArrowUpward, null, tint = AppColors.green, modifier = Modifier.size(8.dp))
+                    Text("$rankChange", fontFamily = FontFamily.Monospace, fontSize = 8.sp, color = AppColors.green, fontWeight = FontWeight.Bold)
                 }
                 rankChange < 0 -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.ArrowDownward, null, tint = Color(0xFFF44336), modifier = Modifier.size(8.dp))
-                    Text("${-rankChange}", fontFamily = FontFamily.Monospace, fontSize = 8.sp, color = Color(0xFFF44336), fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.ArrowDownward, null, tint = AppColors.red, modifier = Modifier.size(8.dp))
+                    Text("${-rankChange}", fontFamily = FontFamily.Monospace, fontSize = 8.sp, color = AppColors.red, fontWeight = FontWeight.Bold)
                 }
-                else -> Text("–", fontFamily = FontFamily.Monospace, fontSize = 9.sp, color = AppColors.textMuted.copy(alpha = 0.4f), fontWeight = FontWeight.Bold)
+                else -> Text("–", fontFamily = FontFamily.Monospace, fontSize = 9.sp, color = AppColors.textSecondary, fontWeight = FontWeight.Bold)
             }
         }
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(modifier = Modifier.fillMaxWidth()) {
-                article.sourceName?.let { Text(it.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.2.sp, color = AppColors.neon.copy(alpha = 0.7f)) }
+                article.sourceName?.let { Text(it.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.2.sp, color = AppColors.neon) }
                 Spacer(Modifier.weight(1f))
                 val readCount = article.readCount
                 val formatted = if (readCount >= 1000) String.format("%.1fK", readCount / 1000.0) else "$readCount"
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.RemoveRedEye, null, tint = AppColors.textMuted, modifier = Modifier.size(10.dp))
+                    Icon(Icons.Default.RemoveRedEye, null, tint = AppColors.textSecondary, modifier = Modifier.size(10.dp))
                     Spacer(Modifier.width(3.dp))
-                    Text(formatted, fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = AppColors.textMuted)
+                    Text(formatted, fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = AppColors.textSecondary)
                 }
-                article.publishedAt?.let { Text(" · ${timeAgo(it)}", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = AppColors.textMuted) }
+                article.publishedAt?.let { Text(" · ${timeAgo(it)}", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = AppColors.textSecondary) }
             }
             Text(article.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = AppColors.textPrimary, lineHeight = 20.sp, maxLines = 2)
             article.category?.let { cat ->
-                val color = categoryAccentColor(cat.slug)
-                Box(modifier = Modifier.background(color.copy(alpha = 0.1f), RoundedCornerShape(100.dp)).border(0.7.dp, color.copy(alpha = 0.3f), RoundedCornerShape(100.dp)).padding(horizontal = 8.dp, vertical = 3.dp)) {
-                    Text(cat.name.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.sp, color = color)
+                val color = AppColors.categoryAccent(cat.slug)
+                Row(
+                    modifier = Modifier.background(color.copy(alpha = 0.08f), RoundedCornerShape(100.dp)).border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(100.dp)).padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(categoryIcon(cat.slug), null, tint = AppColors.textPrimary, modifier = Modifier.size(9.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(cat.name.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.sp, color = AppColors.textPrimary)
                 }
             }
         }
@@ -332,7 +358,7 @@ private fun SearchContent(viewModel: SearchViewModel = viewModel()) {
             is SearchUiState.Success -> {
                 val results = (state as SearchUiState.Success).results
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 100.dp)) {
-                    item { Text("${results.size} RESULTS", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 2.sp, color = AppColors.textMuted, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) }
+                    item { Text("${results.size} RESULTS", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 2.sp, color = AppColors.textSecondary, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) }
                     items(results, key = { it.id }) { article ->
                         SearchResultRow(article, query) { focusManager.clearFocus(); context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.originalUrl))) }
                         HorizontalDivider(color = AppColors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 20.dp))
@@ -345,16 +371,16 @@ private fun SearchContent(viewModel: SearchViewModel = viewModel()) {
 
 @Composable
 private fun SearchResultRow(article: Article, query: String, onTap: () -> Unit) {
-    val color = categoryAccentColor(article.category?.slug)
+    val color = AppColors.categoryAccent(article.category?.slug)
     Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onTap).padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
-        Box(modifier = Modifier.size(44.dp).background(color.copy(alpha = 0.12f), CircleShape).border(1.dp, color.copy(alpha = 0.35f), CircleShape), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(44.dp).background(color.copy(alpha = 0.10f), CircleShape).border(1.dp, color, CircleShape), contentAlignment = Alignment.Center) {
             Icon(categoryIcon(article.category?.slug), null, tint = color, modifier = Modifier.size(20.dp))
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(modifier = Modifier.fillMaxWidth()) {
-                article.sourceName?.let { Text(it.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.2.sp, color = AppColors.neon.copy(alpha = 0.7f)) }
+                article.sourceName?.let { Text(it.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.2.sp, color = AppColors.neon) }
                 Spacer(Modifier.weight(1f))
-                article.publishedAt?.let { Text(timeAgo(it), fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = AppColors.textMuted) }
+                article.publishedAt?.let { Text(timeAgo(it), fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = AppColors.textSecondary) }
             }
             val annotated = buildAnnotatedString {
                 val lower = article.title.lowercase(); val qLower = query.lowercase(); var i = 0
@@ -446,14 +472,13 @@ private fun BookmarkRow(article: Article, onTap: () -> Unit, onRemove: () -> Uni
     Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onTap).padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row {
-                article.sourceName?.let { Text(it.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.2.sp, color = AppColors.neon.copy(alpha = 0.7f)) }
+                article.sourceName?.let { Text(it.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.2.sp, color = AppColors.neon) }
                 Spacer(Modifier.weight(1f))
-                article.publishedAt?.let { Text(timeAgo(it), fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = AppColors.textMuted) }
+                article.publishedAt?.let { Text(timeAgo(it), fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = AppColors.textSecondary) }
             }
             Text(article.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = AppColors.textPrimary, maxLines = 2, lineHeight = 20.sp)
             article.category?.let { cat ->
-                val color = categoryAccentColor(cat.slug)
-                Text(cat.name.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.sp, color = color)
+                Text(cat.name.uppercase(), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.sp, color = AppColors.neon)
             }
         }
         IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Bookmark, null, tint = AppColors.neon, modifier = Modifier.size(18.dp)) }

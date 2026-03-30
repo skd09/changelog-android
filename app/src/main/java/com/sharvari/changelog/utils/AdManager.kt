@@ -8,14 +8,14 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.sharvari.changelog.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import timber.log.Timber
 
 object AdManager {
 
-    // Replace with real ad unit ID before release
-    private const val AD_UNIT_ID = "ca-app-pub-5701767605641071~1696951661" // test ID
+    private val AD_UNIT_ID = BuildConfig.AD_UNIT_ID
 
     private var interstitialAd: InterstitialAd? = null
     private val _isAdReady = MutableStateFlow(false)

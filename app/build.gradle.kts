@@ -23,10 +23,12 @@ android {
     buildTypes {
         debug {
             buildConfigField("String", "BASE_URL", "\"https://dev-api.thechangelog.app/api/v1\"")
+            buildConfigField("String", "AD_UNIT_ID", "\"ca-app-pub-3940256099942544/1033173712\"") // Google test ad
         }
         create("prod") {
             initWith(getByName("release"))
             buildConfigField("String", "BASE_URL", "\"https://tcl-prod-api.thechangelog.app/api/v1\"")
+            buildConfigField("String", "AD_UNIT_ID", "\"ca-app-pub-5701767605641071/1696951661\"") // production ad
             signingConfig = signingConfigs.getByName("debug")
             lint {
                 checkReleaseBuilds = false
@@ -39,6 +41,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("String", "BASE_URL", "\"https://tcl-prod-api.thechangelog.app/api/v1\"")
+            buildConfigField("String", "AD_UNIT_ID", "\"ca-app-pub-5701767605641071/1696951661\"") // production ad
             signingConfig = signingConfigs.getByName("debug")
             ndk {
                 debugSymbolLevel = "FULL"

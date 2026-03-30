@@ -2,6 +2,7 @@ package com.sharvari.changelog.data.other
 
 import com.sharvari.changelog.model.article.ArticlesQuery
 import com.sharvari.changelog.data.request.DeviceRegisterRequest
+import com.sharvari.changelog.data.request.VoteRequest
 import com.sharvari.changelog.data.request.FCMTokenRequest
 import com.sharvari.changelog.data.request.FeedbackRequest
 import com.sharvari.changelog.data.request.NotificationPreferencesRequest
@@ -18,6 +19,8 @@ sealed class APIRouter {
 
     // ── Protected (X-Device-Token required) ──────────────────────────────────
     data class Articles(val query: ArticlesQuery) : APIRouter()
+    data class RecordView(val id: String) : APIRouter()
+    data class VoteArticle(val id: String, val body: VoteRequest) : APIRouter()
     object Trending : APIRouter()
     data class Search(val query: String) : APIRouter()
     object Categories : APIRouter()
@@ -32,6 +35,8 @@ sealed class APIRouter {
 
 val APIRouter.method: HttpMethod get() = when (this) {
     is APIRouter.RegisterDevice,
+    is APIRouter.RecordView,
+    is APIRouter.VoteArticle,
     is APIRouter.UpdateFCMToken,
     is APIRouter.SyncStats,
     is APIRouter.SubmitFeedback     -> HttpMethod.POST
@@ -43,6 +48,8 @@ val APIRouter.path: String get() = when (this) {
     is APIRouter.RegisterDevice               -> "/devices/register"
     is APIRouter.AppConfig                    -> "/config"
     is APIRouter.Articles                     -> "/articles"
+    is APIRouter.RecordView                   -> "/articles/${id}/view"
+    is APIRouter.VoteArticle                  -> "/articles/${id}/vote"
     is APIRouter.Trending                     -> "/articles/trending"
     is APIRouter.Search                       -> "/articles/search"
     is APIRouter.Categories                   -> "/categories"
@@ -74,6 +81,7 @@ val APIRouter.queryItems: Map<String, String>? get() = when (this) {
 
 val APIRouter.body: Any? get() = when (this) {
     is APIRouter.RegisterDevice                -> body
+    is APIRouter.VoteArticle                   -> body
     is APIRouter.UpdateFCMToken                -> body
     is APIRouter.SyncStats                     -> body
     is APIRouter.SubmitFeedback                -> body

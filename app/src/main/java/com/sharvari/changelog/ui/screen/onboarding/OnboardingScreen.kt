@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -562,7 +563,7 @@ private fun categoryIcon(slug: String?): ImageVector = when (slug) {
     "space"       -> Icons.Default.RocketLaunch
     "health"      -> Icons.Default.Favorite
     "open-source" -> Icons.Default.Code
-    else          -> Icons.Default.Article
+    else          -> Icons.AutoMirrored.Filled.Article
 }
 
 fun localHourMinuteToUtcString(hour: Int, minute: Int): String {

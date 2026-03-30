@@ -4,6 +4,7 @@ import com.sharvari.changelog.model.config.AppConfig
 import com.sharvari.changelog.model.article.ArticlesQuery
 import com.sharvari.changelog.model.stats.StatsDelta
 import com.sharvari.changelog.data.request.DeviceRegisterRequest
+import com.sharvari.changelog.data.request.VoteRequest
 import com.sharvari.changelog.data.request.FCMTokenRequest
 import com.sharvari.changelog.data.request.FeedbackRequest
 import com.sharvari.changelog.data.request.NotificationPreferencesRequest
@@ -14,6 +15,7 @@ import com.sharvari.changelog.data.response.DeviceRegisterResponse
 import com.sharvari.changelog.data.response.StatsResponse
 import com.sharvari.changelog.data.response.SuccessResponse
 import kotlinx.serialization.json.Json
+import timber.log.Timber
 
 // Thin façade — one public method per endpoint.
 // All business logic lives in DeviceService / StatsStore.
@@ -44,6 +46,26 @@ class APIService(
         APIRouter.Articles(ArticlesQuery(category, exclude, limit, offset)),
         deserializer()
     )
+
+    // ── View Article (increments read_count on server) ────────────────────────
+
+    suspend fun recordView(id: String) {
+        // POST /articles/{id}/view — increments read_count, deduped per device per 24h
+        try { client.request(APIRouter.RecordView(id), deserializer<SuccessResponse>()) }
+        catch (_: Exception) { /* fire-and-forget */ }
+    }
+
+    // ── Vote ────────────────────────────────────────────────────────────────
+
+    suspend fun voteArticle(id: String, direction: String) {
+        // POST /articles/{id}/vote — upvote or downvote
+        try {
+            client.request(APIRouter.VoteArticle(id, VoteRequest(direction)), deserializer<SuccessResponse>())
+            Timber.d("Vote recorded: %s -> %s", id.take(8), direction)
+        } catch (e: Exception) {
+            Timber.e(e, "Vote failed for article %s", id.take(8))
+        }
+    }
 
     // ── Trending ──────────────────────────────────────────────────────────────
 

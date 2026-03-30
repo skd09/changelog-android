@@ -18,6 +18,7 @@ import com.google.android.gms.ads.MobileAds
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.store.bookmark.BookmarkStore
+import com.sharvari.changelog.store.theme.ThemeStore
 import com.sharvari.changelog.utils.RatingManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,7 @@ class ChangelogApplication : Application() {
         DeviceTokenStore.init(applicationContext)
         FcmTokenStore.init(applicationContext)
         BookmarkStore.init(applicationContext)
+        ThemeStore.init(applicationContext)
 
         // Remaining stores use DataStore (async) — init on IO thread.
         CoroutineScope(Dispatchers.IO).launch {

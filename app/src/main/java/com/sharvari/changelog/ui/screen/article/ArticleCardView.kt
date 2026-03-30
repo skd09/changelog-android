@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
@@ -25,7 +26,11 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -56,6 +61,9 @@ import kotlin.math.roundToInt
 private const val SWIPE_THRESHOLD = 110f
 private const val FLY_DISTANCE    = 1400f
 
+// In-memory vote cache — survives tab switches, cleared on process death
+private val voteCache = mutableMapOf<String, String>() // articleId -> "up" | "down"
+
 @Composable
 fun ArticleCardView(
     article:           Article,
@@ -63,14 +71,20 @@ fun ArticleCardView(
     onSwipeLeft:       () -> Unit,
     onSwipeRight:      () -> Unit,
     onReadFullArticle: () -> Unit = {},
+    onVote:            (direction: String, isActive: Boolean) -> Unit = { _, _ -> },
     modifier:          Modifier = Modifier,
 ) {
-    val offsetX  = remember { Animatable(0f) }
-    val scope    = rememberCoroutineScope()
-    val context  = LocalContext.current
+    val offsetX = remember { Animatable(0f) }
+    val scope   = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val bookmarks    by BookmarkStore.bookmarks.collectAsStateWithLifecycle()
     val isBookmarked  = bookmarks.any { it.id == article.id }
+    // Use cached vote if available, fall back to API value
+    var localVote by remember(article.id) {
+        mutableStateOf(voteCache[article.id] ?: article.yourVote)
+    }
+    var showDoubleTapIcon by remember { mutableStateOf(false) }
 
     val rawOffset    = offsetX.value
     val dragProgress = (abs(rawOffset) / SWIPE_THRESHOLD).coerceIn(0f, 1f)
@@ -105,6 +119,7 @@ fun ArticleCardView(
         }
     }
 
+    // Horizontal swipe on content area — intercepts when clearly horizontal
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -121,9 +136,10 @@ fun ArticleCardView(
         }
     }
 
-    val imageDragModifier = if (isTop) Modifier.draggable(
+    // Horizontal drag on image area
+    val dragModifier = if (isTop) Modifier.draggable(
         orientation = Orientation.Horizontal,
-        state       = rememberDraggableState { delta -> scope.launch { offsetX.snapTo(offsetX.value + delta) } },
+        state = rememberDraggableState { delta -> scope.launch { offsetX.snapTo(offsetX.value + delta) } },
         onDragStopped = { handleDragEnd() },
     ) else Modifier
 
@@ -131,6 +147,7 @@ fun ArticleCardView(
         modifier = modifier
             .offset { IntOffset(rawOffset.roundToInt(), 0) }
             .rotate(rotation)
+            .then(dragModifier)
             .shadow(if (isTop) 24.dp else 8.dp, RoundedCornerShape(AppRadius.xl))
             .clip(RoundedCornerShape(AppRadius.xl))
             .border(1.dp, if (isTop) AppColors.neon.copy(alpha = 0.25f) else AppColors.divider, RoundedCornerShape(AppRadius.xl))
@@ -138,17 +155,107 @@ fun ArticleCardView(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // Image — top 38%
-            Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.38f).then(imageDragModifier)) {
-                ArticleImage(article = article)
+            // ── IMAGE AREA (38%) ────────────────────────────────────────
+            Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.38f)) {
+                ArticleImage(
+                    article = article,
+                    modifier = Modifier.fillMaxSize().pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                localVote = "up"
+                                voteCache[article.id] = "up"
+                                onVote("up", true)
+                                showDoubleTapIcon = true
+                                scope.launch {
+                                    kotlinx.coroutines.delay(800)
+                                    showDoubleTapIcon = false
+                                }
+                            }
+                        )
+                    },
+                )
                 Box(modifier = Modifier.fillMaxWidth().height(100.dp).align(Alignment.BottomCenter)
                     .background(Brush.verticalGradient(listOf(Color.Transparent, AppColors.surface))))
-                article.category?.let { cat ->
-                    CategoryPill(cat.name, cat.slug, Modifier.align(Alignment.BottomStart).padding(AppSpacing.md))
+
+                // Top right: Read count
+                Row(
+                    modifier = Modifier.align(Alignment.TopEnd)
+                        .padding(top = AppSpacing.sm, end = AppSpacing.sm)
+                        .background(AppColors.surface.copy(alpha = 0.6f), RoundedCornerShape(AppRadius.pill))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.RemoveRedEye, null, tint = AppColors.textSecondary, modifier = Modifier.size(10.dp))
+                    Spacer(Modifier.width(4.dp))
+                    val count = article.readCount
+                    Text(
+                        if (count >= 1000) String.format("%.1fK", count / 1000.0) else "$count",
+                        style = AppTypography.mono9, color = AppColors.textSecondary,
+                    )
+                }
+
+                // Bottom bar on image: Category (left) + Vote buttons (right)
+                Row(
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .padding(horizontal = AppSpacing.sm, vertical = AppSpacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    article.category?.let { cat -> CategoryPill(cat.name, cat.slug) }
+                    Spacer(Modifier.weight(1f))
+
+                    // Upvote — 44dp round
+                    val isUpvoted = localVote == "up"
+                    Box(
+                        modifier = Modifier.size(44.dp)
+                            .background(if (isUpvoted) AppColors.green.copy(alpha = 0.2f) else AppColors.surface.copy(alpha = 0.7f), CircleShape)
+                            .border(1.5.dp, if (isUpvoted) AppColors.green.copy(alpha = 0.6f) else AppColors.divider.copy(alpha = 0.4f), CircleShape)
+                            .clip(CircleShape)
+                            .clickable {
+                                val wasActive = isUpvoted
+                                val newVote = if (wasActive) null else "up"
+                                localVote = newVote
+                                if (newVote != null) voteCache[article.id] = newVote else voteCache.remove(article.id)
+                                onVote("up", !wasActive)
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Default.ThumbUp, "Upvote", tint = if (isUpvoted) AppColors.green else AppColors.textSecondary, modifier = Modifier.size(20.dp))
+                    }
+
+                    Spacer(Modifier.width(8.dp))
+
+                    // Downvote — 44dp round
+                    val isDownvoted = localVote == "down"
+                    Box(
+                        modifier = Modifier.size(44.dp)
+                            .background(if (isDownvoted) AppColors.orange.copy(alpha = 0.2f) else AppColors.surface.copy(alpha = 0.7f), CircleShape)
+                            .border(1.5.dp, if (isDownvoted) AppColors.orange.copy(alpha = 0.6f) else AppColors.divider.copy(alpha = 0.4f), CircleShape)
+                            .clip(CircleShape)
+                            .clickable {
+                                val wasActive = isDownvoted
+                                val newVote = if (wasActive) null else "down"
+                                localVote = newVote
+                                if (newVote != null) voteCache[article.id] = newVote else voteCache.remove(article.id)
+                                onVote("down", !wasActive)
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Default.ThumbDown, "Downvote", tint = if (isDownvoted) AppColors.orange else AppColors.textSecondary, modifier = Modifier.size(20.dp))
+                    }
+                }
+
+                // Double-tap upvote animation
+                if (showDoubleTapIcon) {
+                    Icon(
+                        Icons.Default.ThumbUp,
+                        contentDescription = "Upvoted",
+                        tint = AppColors.green,
+                        modifier = Modifier.align(Alignment.Center).size(64.dp),
+                    )
                 }
             }
 
-            // Content — 62%, scrollable
+            // ── CONTENT AREA (scrollable) ───────────────────────────────
             Column(modifier = Modifier.fillMaxWidth().weight(1f).background(AppColors.surface).nestedScroll(nestedScrollConnection)) {
                 Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = AppSpacing.lg, vertical = AppSpacing.lg)) {
 
@@ -164,11 +271,13 @@ fun ArticleCardView(
                     CyberDivider()
                     Spacer(Modifier.height(AppSpacing.sm))
                     Text(article.summary, style = AppTypography.body, color = AppColors.textSecondary, lineHeight = 24.sp)
-                    Spacer(Modifier.height(AppSpacing.md))
+                    Spacer(Modifier.height(AppSpacing.lg))
 
-                    // Action row: Bookmark + Share + Full Article
-                    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-
+                    // ── BOTTOM BAR: Bookmark + Share | Read Article ────────
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         // Bookmark
                         Box(
                             modifier = Modifier.size(36.dp)
@@ -180,8 +289,8 @@ fun ArticleCardView(
                         ) {
                             Icon(
                                 if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                                if (isBookmarked) "Remove bookmark" else "Bookmark",
-                                tint     = if (isBookmarked) AppColors.neon else AppColors.textSecondary,
+                                "Bookmark",
+                                tint = if (isBookmarked) AppColors.neon else AppColors.textSecondary,
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -202,7 +311,7 @@ fun ArticleCardView(
 
                         Spacer(Modifier.weight(1f))
 
-                        // Full Article — opens in-app reader
+                        // Read Article
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -212,32 +321,43 @@ fun ArticleCardView(
                                 .clickable { onReadFullArticle() }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
-                            Text("FULL ARTICLE", style = AppTypography.mono11, color = AppColors.neon, letterSpacing = 0.10.sp)
+                            Text("READ ARTICLE", style = AppTypography.mono11, color = AppColors.neon, letterSpacing = 0.10.sp)
                             Spacer(Modifier.width(6.dp))
                             Icon(Icons.Default.ArrowOutward, null, tint = AppColors.neon, modifier = Modifier.size(12.dp))
                         }
                     }
+
+                    Spacer(Modifier.height(AppSpacing.sm))
                 }
             }
         }
 
+        // Tint overlay
         Box(modifier = Modifier.fillMaxSize().background(tintColor))
 
-        if (isTop && rawOffset < -20) SwipeBadge("SKIP", Icons.Default.Close, AppColors.magenta, dragProgress,
+        // Swipe badges — horizontal only
+        if (isTop && rawOffset < -20) SwipeBadge("NEXT", Icons.Default.Close, AppColors.magenta, dragProgress,
             Modifier.align(Alignment.TopEnd).padding(top = AppSpacing.lg, end = AppSpacing.lg).rotate(-12f))
         if (isTop && rawOffset > 20)  SwipeBadge("READ", Icons.Default.ArrowOutward, AppColors.neon, dragProgress,
             Modifier.align(Alignment.TopStart).padding(top = AppSpacing.lg, start = AppSpacing.lg).rotate(12f))
     }
 }
 
+// ── Supporting composables ───────────────────────────────────────────────────
+
 @Composable
-private fun ArticleImage(article: Article) {
+private fun ArticleImage(article: Article, modifier: Modifier = Modifier) {
     val accent = AppColors.categoryAccent(article.category?.slug)
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier) {
         Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(accent.copy(alpha = 0.25f), AppColors.background, accent.copy(alpha = 0.08f)))), contentAlignment = Alignment.Center) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val s = 28f; var x = 0f
-                while (x < size.width) { var y = 0f; while (y < size.height) { drawCircle(accent.copy(alpha = 0.06f), 1f, Offset(x, y)); y += s }; x += s }
+                val step = 40.dp.toPx()
+                val gridColor = accent.copy(alpha = 0.08f)
+                val strokeW = 0.5.dp.toPx()
+                var x = 0f
+                while (x <= size.width) { drawLine(gridColor, Offset(x, 0f), Offset(x, size.height), strokeWidth = strokeW); x += step }
+                var y = 0f
+                while (y <= size.height) { drawLine(gridColor, Offset(0f, y), Offset(size.width, y), strokeWidth = strokeW); y += step }
             }
             Box(modifier = Modifier.size(160.dp).align(Alignment.TopEnd).offset(x = 40.dp, y = (-20).dp).background(Brush.radialGradient(listOf(accent.copy(alpha = 0.3f), Color.Transparent)), CircleShape))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -259,7 +379,13 @@ private fun ArticleImage(article: Article) {
 @Composable
 private fun CategoryPill(name: String, slug: String, modifier: Modifier = Modifier) {
     val color = AppColors.categoryAccent(slug)
-    Row(modifier = modifier.background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(AppRadius.pill)).border(1.dp, color.copy(alpha = 0.6f), RoundedCornerShape(AppRadius.pill)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = modifier
+            .background(color.copy(alpha = 0.1f), RoundedCornerShape(AppRadius.pill))
+            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(AppRadius.pill))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Icon(categoryIcon(slug), null, tint = color, modifier = Modifier.size(10.dp))
         Spacer(Modifier.width(4.dp))
         Text(name.uppercase(), style = AppTypography.mono9, color = color, letterSpacing = 0.10.sp)

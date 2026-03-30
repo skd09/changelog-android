@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.sharvari.changelog.data.response.ServerStats
 import com.sharvari.changelog.model.stats.StatsDelta
 import com.sharvari.changelog.service.device.DeviceService
+import com.sharvari.changelog.data.response.ServerStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,26 +25,34 @@ object StatsStore {
     private val TOTAL_SESSIONS        = intPreferencesKey("total_sessions")
     private val TOTAL_READ_SECONDS    = intPreferencesKey("total_read_seconds")
     private val TOTAL_SESSION_SECONDS = intPreferencesKey("total_session_seconds")
+    private val TOTAL_UPVOTES         = intPreferencesKey("total_upvotes")
+    private val TOTAL_DOWNVOTES       = intPreferencesKey("total_downvotes")
 
     private val _totalReads      = MutableStateFlow(0)
     private val _totalSkips      = MutableStateFlow(0)
     private val _totalSessions   = MutableStateFlow(0)
     private val _avgReadTime     = MutableStateFlow(0)
     private val _avgSessionTime  = MutableStateFlow(0)
+    private val _totalUpvotes    = MutableStateFlow(0)
+    private val _totalDownvotes  = MutableStateFlow(0)
 
     val totalReads:     StateFlow<Int> = _totalReads.asStateFlow()
     val totalSkips:     StateFlow<Int> = _totalSkips.asStateFlow()
     val totalSessions:  StateFlow<Int> = _totalSessions.asStateFlow()
     val avgReadTime:    StateFlow<Int> = _avgReadTime.asStateFlow()
     val avgSessionTime: StateFlow<Int> = _avgSessionTime.asStateFlow()
+    val totalUpvotes:   StateFlow<Int> = _totalUpvotes.asStateFlow()
+    val totalDownvotes: StateFlow<Int> = _totalDownvotes.asStateFlow()
 
     private var pendingDelta = StatsDelta()
     private lateinit var appContext: Context
+    private var isInitialized = false
 
-    // ── Init ──────────────────────────────────────────────────────────────────
+    // ── Init — set context sync, load data async ────────────────────────────
     suspend fun init(context: Context) {
         appContext = context.applicationContext
         loadFromLocal()
+        isInitialized = true
         startSyncTimer()
     }
 
@@ -52,23 +60,44 @@ object StatsStore {
     fun recordRead() {
         _totalReads.value++
         pendingDelta.reads++
-        persist { it[TOTAL_READS] = _totalReads.value }
+        persistIfReady { it[TOTAL_READS] = _totalReads.value }
     }
 
     fun recordSkip() {
         _totalSkips.value++
         pendingDelta.skips++
-        persist { it[TOTAL_SKIPS] = _totalSkips.value }
+        persistIfReady { it[TOTAL_SKIPS] = _totalSkips.value }
+    }
+
+    fun recordUpvote() {
+        _totalUpvotes.value++
+        persistIfReady { it[TOTAL_UPVOTES] = _totalUpvotes.value }
+    }
+
+    fun decrementUpvote() {
+        if (_totalUpvotes.value > 0) _totalUpvotes.value--
+        persistIfReady { it[TOTAL_UPVOTES] = _totalUpvotes.value }
+    }
+
+    fun recordDownvote() {
+        _totalDownvotes.value++
+        persistIfReady { it[TOTAL_DOWNVOTES] = _totalDownvotes.value }
+    }
+
+    fun decrementDownvote() {
+        if (_totalDownvotes.value > 0) _totalDownvotes.value--
+        persistIfReady { it[TOTAL_DOWNVOTES] = _totalDownvotes.value }
     }
 
     fun recordSession() {
         _totalSessions.value++
         pendingDelta.sessions++
-        persist { it[TOTAL_SESSIONS] = _totalSessions.value }
+        persistIfReady { it[TOTAL_SESSIONS] = _totalSessions.value }
     }
 
     fun recordReadTime(seconds: Int) {
         pendingDelta.readSeconds += seconds
+        if (!isInitialized) return
         CoroutineScope(Dispatchers.IO).launch {
             val prefs = appContext.statsDataStore.data.first()
             val total = (prefs[TOTAL_READ_SECONDS] ?: 0) + seconds
@@ -81,6 +110,7 @@ object StatsStore {
 
     fun recordSessionTime(seconds: Int) {
         pendingDelta.sessionSeconds += seconds
+        if (!isInitialized) return
         CoroutineScope(Dispatchers.IO).launch {
             val prefs = appContext.statsDataStore.data.first()
             val total = (prefs[TOTAL_SESSION_SECONDS] ?: 0) + seconds
@@ -99,7 +129,7 @@ object StatsStore {
         _avgReadTime.value    = stats.avgReadTime
         _avgSessionTime.value = stats.avgSessionTime
 
-        persist {
+        persistIfReady {
             it[TOTAL_READS]    = stats.totalReads
             it[TOTAL_SKIPS]    = stats.totalSkips
             it[TOTAL_SESSIONS] = stats.totalSessions
@@ -110,15 +140,18 @@ object StatsStore {
         val delta = pendingDelta
         if (delta.isEmpty) return
         pendingDelta = StatsDelta()
-        DeviceService.shared.syncStats(delta)  // ← now goes through DeviceService, not DeviceTokenStore
+        DeviceService.shared.syncStats(delta)
     }
 
     // ── Local ─────────────────────────────────────────────────────────────────
     private suspend fun loadFromLocal() {
         val prefs = appContext.statsDataStore.data.first()
-        _totalReads.value    = prefs[TOTAL_READS]    ?: 0
-        _totalSkips.value    = prefs[TOTAL_SKIPS]    ?: 0
-        _totalSessions.value = prefs[TOTAL_SESSIONS] ?: 0
+        // Only set if no in-flight increments happened before init
+        if (_totalReads.value == 0)      _totalReads.value      = prefs[TOTAL_READS]      ?: 0
+        if (_totalSkips.value == 0)      _totalSkips.value      = prefs[TOTAL_SKIPS]      ?: 0
+        if (_totalSessions.value == 0)   _totalSessions.value   = prefs[TOTAL_SESSIONS]   ?: 0
+        if (_totalUpvotes.value == 0)    _totalUpvotes.value    = prefs[TOTAL_UPVOTES]    ?: 0
+        if (_totalDownvotes.value == 0)  _totalDownvotes.value  = prefs[TOTAL_DOWNVOTES]  ?: 0
 
         val readSecs = prefs[TOTAL_READ_SECONDS]    ?: 0
         val sessSecs = prefs[TOTAL_SESSION_SECONDS] ?: 0
@@ -135,7 +168,8 @@ object StatsStore {
         }
     }
 
-    private fun persist(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
+    private fun persistIfReady(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
+        if (!isInitialized) return
         CoroutineScope(Dispatchers.IO).launch {
             appContext.statsDataStore.edit(block)
         }

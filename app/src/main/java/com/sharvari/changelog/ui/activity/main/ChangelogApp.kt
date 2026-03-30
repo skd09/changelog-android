@@ -15,7 +15,7 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -104,7 +104,7 @@ fun ChangelogApp() {
     fun trackCard() {
         cardsSeenSinceAd++
         activity?.let { RatingManager.recordSwipe(it) }
-        if (cardsSeenSinceAd >= 5) {
+        if (cardsSeenSinceAd >= 9) {
             cardsSeenSinceAd = 0
             activity?.let { AdManager.showAd(it) }
         }

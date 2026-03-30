@@ -21,9 +21,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sharvari.changelog.data.other.APIService
 import com.sharvari.changelog.model.article.Article
 import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.service.analytics.SwipeDirection
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.sharvari.changelog.ui.screen.article.ArticleReaderScreen
 import com.sharvari.changelog.ui.screen.discover.DiscoverScreen
 import com.sharvari.changelog.ui.screen.home.HomeScreen
@@ -51,14 +55,26 @@ fun MainTabView(
                 },
                 onSwipeLeft       = { article ->
                     AnalyticsManager.articleSwiped(article, SwipeDirection.LEFT)
+                    CoroutineScope(Dispatchers.IO).launch { APIService.shared.recordView(article.id) }
                     homeViewModel.dismissArticle(article)
                     onTrackCard()
                 },
                 onSwipeRight      = { article ->
                     AnalyticsManager.articleSwiped(article, SwipeDirection.RIGHT)
+                    CoroutineScope(Dispatchers.IO).launch { APIService.shared.recordView(article.id) }
                     homeViewModel.openArticle(article)
                     onTrackCard()
                     readerArticle = article
+                },
+                onVote            = { article, direction, isActive ->
+                    val stats = com.sharvari.changelog.store.stats.StatsStore
+                    if (direction == "up") { if (isActive) stats.recordUpvote() else stats.decrementUpvote() }
+                    else { if (isActive) stats.recordDownvote() else stats.decrementDownvote() }
+                    CoroutineScope(Dispatchers.IO).launch {
+                        APIService.shared.voteArticle(article.id, direction)
+                        APIService.shared.recordView(article.id)
+                    }
+                    onTrackCard()
                 },
             )
             Tab.DISCOVER -> DiscoverScreen()
@@ -80,10 +96,10 @@ fun MainTabView(
             selectedTab = selectedTab,
             modifier    = Modifier.align(Alignment.BottomCenter),
             onTabSelected = { tab ->
+                selectedTab = tab
                 if (tab == Tab.SETTINGS) {
                     showSettings = true
                 } else {
-                    selectedTab  = tab
                     showSettings = false
                 }
             },

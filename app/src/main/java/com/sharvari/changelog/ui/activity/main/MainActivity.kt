@@ -23,9 +23,14 @@ class MainActivity : ComponentActivity() {
 
         if (savedInstanceState == null) {
             val appVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0.0"
+            // Launch independently — config failure must not block registration
             CoroutineScope(Dispatchers.IO).launch {
-                AppConfigService.fetch()
-                DeviceService.shared.registerIfNeeded(appVersion)
+                try { AppConfigService.fetch() }
+                catch (e: Exception) { timber.log.Timber.w("Config fetch failed: %s", e) }
+            }
+            CoroutineScope(Dispatchers.IO).launch {
+                try { DeviceService.shared.registerIfNeeded(appVersion) }
+                catch (e: Exception) { timber.log.Timber.e("Registration failed: %s", e) }
             }
             BookmarkStore.init(this)
         }

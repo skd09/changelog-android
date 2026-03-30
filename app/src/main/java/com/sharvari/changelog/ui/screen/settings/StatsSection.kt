@@ -73,7 +73,7 @@ fun StatsSection() {
     val avgReadTime    by StatsStore.avgReadTime.collectAsStateWithLifecycle()
     val avgSessionTime by StatsStore.avgSessionTime.collectAsStateWithLifecycle()
 
-    val rank = readerRank(totalReads)
+    val rank = readerRank(totalSkips)  // rank based on articles read (swipes)
     val readRatio = if (totalReads + totalSkips > 0)
         "${(totalReads.toDouble() / (totalReads + totalSkips) * 100).toInt()}%"
     else "—"
@@ -90,14 +90,14 @@ fun StatsSection() {
 
         val fraction = run {
             val range  = (rank.nextMilestone - rank.milestone).coerceAtLeast(1)
-            val earned = (totalReads - rank.milestone).coerceIn(0, range)
+            val earned = (totalSkips - rank.milestone).coerceIn(0, range)
             earned.toFloat() / range.toFloat()
         }
         val animatedFraction by animateFloatAsState(fraction, tween(1000), label = "xp")
 
         Column {
             Row(Modifier.fillMaxWidth()) {
-                Text("$totalReads / ${rank.nextMilestone} reads to next rank", style = AppTypography.mono10, color = AppColors.textMuted)
+                Text("$totalSkips / ${rank.nextMilestone} articles to next rank", style = AppTypography.mono10, color = AppColors.textMuted)
                 Spacer(Modifier.weight(1f))
                 Text("${(fraction * 100).toInt()}%", style = AppTypography.mono10, color = rank.color, fontWeight = FontWeight.Bold)
             }
@@ -127,14 +127,19 @@ fun StatsSection() {
         }
         Spacer(Modifier.height(AppSpacing.md))
 
+        val totalUpvotes   by StatsStore.totalUpvotes.collectAsStateWithLifecycle()
+        val totalDownvotes by StatsStore.totalDownvotes.collectAsStateWithLifecycle()
+
         data class StatEntry(val value: String, val label: String, val color: Color, val icon: ImageVector)
         val stats = listOf(
-            StatEntry("$totalReads",             "ARTICLES READ", AppColors.neon,          Icons.Default.MenuBook),
-            StatEntry("$totalSkips",             "SKIPPED",       AppColors.textSecondary, Icons.Default.FastForward),
-            StatEntry(formatTime(avgReadTime),   "AVG READ TIME", Color(0xFF66CCFF),       Icons.Default.Timer),
-            StatEntry(formatTime(avgSessionTime),"AVG SESSION",   Color(0xFF9966FF),       Icons.Default.AccessTime),
-            StatEntry("$totalSessions",          "SESSIONS",      Color(0xFFFFB86C),       Icons.Default.LayersClear),
-            StatEntry(readRatio,                 "READ RATIO",    AppColors.magenta,       Icons.Default.BarChart),
+            StatEntry(readRatio,                 "READ RATIO",        AppColors.magenta,       Icons.Default.BarChart),
+            StatEntry("$totalSessions",          "SESSIONS",          Color(0xFFFFB86C),       Icons.Default.LayersClear),
+            StatEntry("$totalSkips",             "ARTICLES READ",     AppColors.textSecondary, Icons.Default.FastForward),
+            StatEntry("$totalReads",             "FULL READ",         AppColors.neon,          Icons.Default.MenuBook),
+            StatEntry(formatTime(avgReadTime),   "AVG READ TIME",     Color(0xFF66CCFF),       Icons.Default.Timer),
+            StatEntry(formatTime(avgSessionTime),"AVG SESSION",       Color(0xFF9966FF),       Icons.Default.AccessTime),
+            StatEntry("$totalUpvotes",           "TOTAL UPVOTES",     AppColors.green,         Icons.Default.ThumbUp),
+            StatEntry("$totalDownvotes",         "TOTAL DOWNVOTES",   AppColors.orange,        Icons.Default.ThumbDown),
         )
         stats.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

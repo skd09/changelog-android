@@ -55,9 +55,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sharvari.changelog.store.home.HomeUiState
+import com.sharvari.changelog.store.home.HomeViewModel
 import com.sharvari.changelog.ui.screen.article.ArticleCardView
 import com.sharvari.changelog.ui.components.CyberBackground
 import com.sharvari.changelog.ui.components.CyberLoader
+import com.sharvari.changelog.ui.components.GestureWalkthrough
 import com.sharvari.changelog.ui.theme.AppColors
 import com.sharvari.changelog.ui.theme.AppRadius
 import com.sharvari.changelog.ui.theme.AppSpacing
@@ -71,6 +74,7 @@ fun HomeScreen(
     onOpenReader: (com.sharvari.changelog.model.article.Article) -> Unit = {},
     onSwipeLeft: (com.sharvari.changelog.model.article.Article) -> Unit = { viewModel.dismissArticle(it) },
     onSwipeRight: (com.sharvari.changelog.model.article.Article) -> Unit = { viewModel.openArticle(it) },
+    onVote: (com.sharvari.changelog.model.article.Article, String, Boolean) -> Unit = { _, _, _ -> },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -93,20 +97,17 @@ fun HomeScreen(
 
     CyberBackground {
         Scaffold(
-            containerColor = Color.Transparent,
+            containerColor = AppColors.background,
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(
-                            text  = "The Changelog",
-                            style = AppTypography.mono12,
-                            color = AppColors.textPrimary,
-                            letterSpacing = 0.10.sp,
-                        )
-                    },
-                    actions = {
-                        IconButton(onClick = onOpenSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = AppColors.textSecondary)
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text          = "THE CHANGELOG",
+                                style         = AppTypography.label,
+                                color         = AppColors.neon,
+                                letterSpacing = AppTypography.trackingXWide,
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -136,11 +137,28 @@ fun HomeScreen(
                                 onSwipeLeft  = { onSwipeLeft(it) },
                                 onSwipeRight = { onSwipeRight(it) },
                                 onOpenReader = onOpenReader,
+                                onVote       = onVote,
                             )
 
                             // Loading banner on top of cards
                             AnimatedVisibility(visible = successState.isRefreshing, enter = fadeIn(), exit = fadeOut()) {
                                 LoadingBanner()
+                            }
+
+                            // First-time gesture walkthrough overlay
+                            var showWalkthrough by remember {
+                                mutableStateOf(
+                                    !context.getSharedPreferences("changelog", Context.MODE_PRIVATE)
+                                        .getBoolean("tc_walkthrough_seen", false)
+                                )
+                            }
+
+                            if (showWalkthrough) {
+                                GestureWalkthrough(onDismiss = {
+                                    showWalkthrough = false
+                                    context.getSharedPreferences("changelog", Context.MODE_PRIVATE)
+                                        .edit().putBoolean("tc_walkthrough_seen", true).apply()
+                                })
                             }
                         }
                     }
@@ -157,11 +175,12 @@ private fun CardStack(
     onSwipeLeft: (com.sharvari.changelog.model.article.Article) -> Unit,
     onSwipeRight: (com.sharvari.changelog.model.article.Article) -> Unit,
     onOpenReader: (com.sharvari.changelog.model.article.Article) -> Unit = {},
+    onVote: (com.sharvari.changelog.model.article.Article, String, Boolean) -> Unit = { _, _, _ -> },
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = AppSpacing.lg, vertical = AppSpacing.sm),
+            .padding(start = AppSpacing.lg, end = AppSpacing.lg, top = AppSpacing.sm, bottom = 80.dp),
     ) {
         // Render back-to-front so top card (index 0) draws on top
         articles.asReversed().forEachIndexed { revIdx, article ->
@@ -177,6 +196,7 @@ private fun CardStack(
                     onSwipeLeft      = { onSwipeLeft(article) },
                     onSwipeRight     = { onSwipeRight(article) },
                     onReadFullArticle = { onOpenReader(article) },
+                    onVote           = { direction, isActive -> onVote(article, direction, isActive) },
                     modifier     = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
