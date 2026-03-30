@@ -2,7 +2,9 @@ package com.sharvari.changelog
 
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import com.sharvari.changelog.data.service.DeviceService
+import com.sharvari.changelog.service.deeplink.DeepLinkManager
+import com.sharvari.changelog.service.device.DeviceService
+import timber.log.Timber
 
 // Register in AndroidManifest.xml inside <application>:
 //
@@ -20,12 +22,13 @@ class ChangelogFirebaseMessagingService : FirebaseMessagingService() {
     // FcmTokenStore uses SharedPreferences so saveToken() is synchronous — no context needed.
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        println("🔔 New FCM token received")
+        Timber.d("New FCM token received")
         DeviceService.shared.onFCMTokenReceived(token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        println("📩 FCM message received: ${message.messageId}")
+        Timber.d("FCM message received: %s", message.messageId)
+        DeepLinkManager.handleNotification(message.data)
     }
 }

@@ -106,4 +106,14 @@ dependencies {
 
     // Firebase
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.analytics)
+
+    // WebView
+    implementation("androidx.webkit:webkit:1.12.1")
+
+    // Timber
+    implementation(libs.timber)
+
+    // Lifecycle
+    implementation(libs.androidx.lifecycle.runtime.compose)
 }

@@ -9,16 +9,19 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
-import com.sharvari.changelog.data.store.CategoryStore
-import com.sharvari.changelog.data.store.DeviceTokenStore
-import com.sharvari.changelog.data.store.FcmTokenStore
-import com.sharvari.changelog.data.store.ReadArticlesStore
-import com.sharvari.changelog.data.store.StatsStore
+import com.sharvari.changelog.store.category.CategoryStore
+import com.sharvari.changelog.store.device.DeviceTokenStore
+import com.sharvari.changelog.store.device.FcmTokenStore
+import com.sharvari.changelog.store.article.ReadArticlesStore
+import com.sharvari.changelog.store.stats.StatsStore
 import com.google.android.gms.ads.MobileAds
-import com.sharvari.changelog.data.store.BookmarkStore
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.sharvari.changelog.service.analytics.AnalyticsManager
+import com.sharvari.changelog.store.bookmark.BookmarkStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import okio.Path.Companion.toOkioPath
 import java.util.concurrent.TimeUnit
 
@@ -26,6 +29,8 @@ class ChangelogApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        Timber.plant(Timber.DebugTree())
 
         // DeviceTokenStore and FcmTokenStore use SharedPreferences (synchronous).
         // Init just provides context — no async needed, no race condition.
@@ -77,6 +82,7 @@ class ChangelogApplication : Application() {
                 .build()
         }
 
+        AnalyticsManager.init(FirebaseAnalytics.getInstance(this))
         MobileAds.initialize(this)
     }
 }
