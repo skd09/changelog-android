@@ -76,6 +76,7 @@ val APIRouter.queryItems: Map<String, String>? get() = when (this) {
         if (query.exclude.isNotEmpty()) put("exclude", query.exclude.joinToString(","))
     }
     is APIRouter.Search -> mapOf("q" to query)
+    is APIRouter.AppConfig -> mapOf("platform" to "android")
     else -> null
 }
 
