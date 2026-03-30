@@ -18,6 +18,7 @@ import com.google.android.gms.ads.MobileAds
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.store.bookmark.BookmarkStore
+import com.sharvari.changelog.utils.RatingManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -82,6 +83,7 @@ class ChangelogApplication : Application() {
                 .build()
         }
 
+        RatingManager.init(applicationContext)
         AnalyticsManager.init(FirebaseAnalytics.getInstance(this))
         MobileAds.initialize(this)
     }

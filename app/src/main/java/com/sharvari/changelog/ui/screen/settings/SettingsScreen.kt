@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.store.article.ReadArticlesStore
+import com.sharvari.changelog.utils.RatingManager
 import com.sharvari.changelog.ui.components.CyberBackground
 import com.sharvari.changelog.ui.components.NeonBar
 import com.sharvari.changelog.ui.theme.AppColors
@@ -112,6 +113,7 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                 item {
                     SettingsRow(icon = Icons.Default.Star, label = "Rate on Play Store") {
                         AnalyticsManager.appRated()
+                        RatingManager.markAsRated()
                         try {
                             uriHandler.openUri("market://details?id=com.sharvari.changelog")
                         } catch (_: ActivityNotFoundException) {

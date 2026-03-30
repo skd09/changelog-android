@@ -23,6 +23,7 @@ import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.service.device.DeviceService
 import com.sharvari.changelog.store.config.AppConfigService
 import com.sharvari.changelog.utils.AdManager
+import com.sharvari.changelog.utils.RatingManager
 import com.sharvari.changelog.store.home.HomeViewModel
 import com.sharvari.changelog.ui.screen.onboarding.OnboardingScreen
 import com.sharvari.changelog.ui.screen.others.ForceUpdateScreen
@@ -102,6 +103,7 @@ fun ChangelogApp() {
 
     fun trackCard() {
         cardsSeenSinceAd++
+        activity?.let { RatingManager.recordSwipe(it) }
         if (cardsSeenSinceAd >= 5) {
             cardsSeenSinceAd = 0
             activity?.let { AdManager.showAd(it) }
@@ -134,10 +136,13 @@ fun ChangelogApp() {
                 prefs.edit().putBoolean(onboardingKey, true).apply()
                 hasCompletedOnboarding = true
             }
-            else -> MainTabView(
-                homeViewModel = homeViewModel,
-                onTrackCard   = ::trackCard,
-            )
+            else -> {
+                activity?.let { RatingManager.recordAppOpen(it) }
+                MainTabView(
+                    homeViewModel = homeViewModel,
+                    onTrackCard   = ::trackCard,
+                )
+            }
         }
     }
 }

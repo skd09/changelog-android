@@ -116,4 +116,8 @@ dependencies {
 
     // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // In-App Review
+    implementation("com.google.android.play:review:2.0.2")
+    implementation("com.google.android.play:review-ktx:2.0.2")
 }
