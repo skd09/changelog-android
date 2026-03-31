@@ -54,6 +54,8 @@ fun SettingsScreen(onDismiss: () -> Unit) {
         } catch (_: PackageManager.NameNotFoundException) { "1.0.0" }
     }
 
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("Settings") }
+
     CyberBackground {
         CyberSettingsGrid(modifier = Modifier.fillMaxSize())
 
@@ -90,14 +92,21 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                 item { ThemeSelector() }
 
                 item { SectionHeader("CHANNELS") }
-                item { SettingsRow(icon = Icons.Default.Settings, label = "Manage channels") { showChannels = true } }
+                item { SettingsRow(icon = Icons.Default.Settings, label = "Manage channels") {
+                    AnalyticsManager.trackClick("manage_channels", "Settings")
+                    showChannels = true
+                } }
 
                 item { SectionHeader("NOTIFICATIONS") }
-                item { SettingsRow(icon = Icons.Default.Notifications, label = "Notification preferences") { showNotificationPrefs = true } }
+                item { SettingsRow(icon = Icons.Default.Notifications, label = "Notification preferences") {
+                    AnalyticsManager.trackClick("notification_preferences", "Settings")
+                    showNotificationPrefs = true
+                } }
 
                 item { SectionHeader("SPREAD THE WORD") }
                 item {
                     SettingsRow(icon = Icons.Default.Share, label = "Share with a friend") {
+                        AnalyticsManager.trackClick("share_app", "Settings")
                         AnalyticsManager.appShared()
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
@@ -108,6 +117,7 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                 }
                 item {
                     SettingsRow(icon = Icons.Default.Star, label = "Rate on Play Store") {
+                        AnalyticsManager.trackClick("rate_app", "Settings")
                         AnalyticsManager.appRated()
                         RatingManager.markAsRated()
                         try {
@@ -119,7 +129,10 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                 }
 
                 item { SectionHeader("FEEDBACK") }
-                item { SettingsRow(icon = Icons.Default.Mail, label = "Send feedback") { showFeedback = true } }
+                item { SettingsRow(icon = Icons.Default.Mail, label = "Send feedback") {
+                    AnalyticsManager.trackClick("send_feedback", "Settings")
+                    showFeedback = true
+                } }
                 item {
                     SettingsRow(icon = Icons.Default.Mail, label = "Contact us") {
                         uriHandler.openUri("mailto:sharvarid.dev@gmail.com?subject=Feedback")
@@ -129,6 +142,7 @@ fun SettingsScreen(onDismiss: () -> Unit) {
                 item { SectionHeader("READING") }
                 item {
                     SettingsRow(icon = Icons.Default.Refresh, label = "Clear read history", destructive = true) {
+                        AnalyticsManager.trackClick("clear_history", "Settings")
                         showClearHistory = true
                     }
                 }
@@ -203,7 +217,11 @@ private fun SectionHeader(title: String) {
 @Composable
 private fun ThemeSelector() {
     val currentMode by ThemeStore.mode.collectAsStateWithLifecycle()
-    val options = listOf(ThemeMode.SYSTEM to "System", ThemeMode.LIGHT to "Light", ThemeMode.DARK to "Dark")
+    val options = listOf(
+        Triple(ThemeMode.SYSTEM, "System", Icons.Default.Settings),
+        Triple(ThemeMode.LIGHT, "Light", Icons.Default.LightMode),
+        Triple(ThemeMode.DARK, "Dark", Icons.Default.DarkMode),
+    )
 
     Row(
         modifier = Modifier
@@ -213,21 +231,28 @@ private fun ThemeSelector() {
             .padding(AppSpacing.xs),
         horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
     ) {
-        options.forEach { (mode, label) ->
+        options.forEach { (mode, label, icon) ->
             val selected = currentMode == mode
-            Box(
+            Row(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(AppRadius.sm))
                     .then(
                         if (selected) Modifier.background(AppColors.neon.copy(alpha = 0.15f), RoundedCornerShape(AppRadius.sm))
                             .border(1.dp, AppColors.neon.copy(alpha = 0.4f), RoundedCornerShape(AppRadius.sm))
-                        else Modifier.clickable { ThemeStore.setMode(mode) }
+                        else Modifier
                     )
                     .clickable { ThemeStore.setMode(mode) }
                     .padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center,
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                Icon(
+                    icon, null,
+                    tint = if (selected) AppColors.neon else AppColors.textSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(5.dp))
                 Text(
                     text          = label,
                     style         = AppTypography.mono11,

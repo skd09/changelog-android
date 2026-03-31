@@ -137,7 +137,7 @@ fun ChangelogApp() {
                 hasCompletedOnboarding = true
             }
             else -> {
-                activity?.let { RatingManager.recordAppOpen(it) }
+                LaunchedEffect(Unit) { activity?.let { RatingManager.recordAppOpen(it) } }
                 MainTabView(
                     homeViewModel = homeViewModel,
                     onTrackCard   = ::trackCard,

@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharvari.changelog.model.article.Article
+import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.store.bookmark.BookmarkStore
 import com.sharvari.changelog.store.discover.SearchUiState
 import com.sharvari.changelog.store.discover.SearchViewModel
@@ -75,6 +76,8 @@ enum class DiscoverSegment(val label: String, val icon: ImageVector, val filledI
 fun DiscoverScreen() {
     var selectedSegment by remember { mutableStateOf(DiscoverSegment.TRENDING) }
     val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("Discover") }
 
     Scaffold(
         containerColor = AppColors.background,
@@ -128,6 +131,7 @@ fun DiscoverScreen() {
                         .border(1.dp, if (isActive) AppColors.neon else AppColors.divider, RoundedCornerShape(10.dp))
                         .clip(RoundedCornerShape(10.dp))
                         .clickable {
+                            AnalyticsManager.trackClick("segment_${segment.label.lowercase()}", "Discover")
                             selectedSegment = segment
                             if (segment != DiscoverSegment.SEARCH) focusManager.clearFocus()
                         }
@@ -213,6 +217,7 @@ private fun TrendingContent(viewModel: TrendingViewModel = viewModel()) {
                         items(successState.filtered, key = { it.id }) { article ->
                             val rank = successState.filtered.indexOf(article) + 1
                             TrendingRow(article, rank, viewModel.rankChange(article.id)) {
+                                AnalyticsManager.trackClick("trending_article", "Discover")
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.originalUrl)))
                             }
                             HorizontalDivider(color = AppColors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 20.dp))
@@ -360,7 +365,7 @@ private fun SearchContent(viewModel: SearchViewModel = viewModel()) {
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 100.dp)) {
                     item { Text("${results.size} RESULTS", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 2.sp, color = AppColors.textSecondary, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) }
                     items(results, key = { it.id }) { article ->
-                        SearchResultRow(article, query) { focusManager.clearFocus(); context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.originalUrl))) }
+                        SearchResultRow(article, query) { AnalyticsManager.trackClick("search_result", "Discover"); focusManager.clearFocus(); context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.originalUrl))) }
                         HorizontalDivider(color = AppColors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 20.dp))
                     }
                 }

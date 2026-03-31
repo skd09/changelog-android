@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharvari.changelog.model.config.ForceUpdateConfig
 import com.sharvari.changelog.model.config.MaintenanceConfig
+import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.ui.components.CyberBackground
 import com.sharvari.changelog.ui.components.CyberButton
 import com.sharvari.changelog.ui.theme.AppColors
@@ -31,6 +33,8 @@ import com.sharvari.changelog.ui.theme.AppTypography
 // ── Maintenance Screen ────────────────────────────────────────────────────────
 @Composable
 fun MaintenanceScreen(config: MaintenanceConfig) {
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("Maintenance") }
+
     CyberBackground {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
@@ -76,6 +80,8 @@ fun MaintenanceScreen(config: MaintenanceConfig) {
 @Composable
 fun ForceUpdateScreen(config: ForceUpdateConfig) {
     val uriHandler = LocalUriHandler.current
+
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("ForceUpdate") }
 
     CyberBackground {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

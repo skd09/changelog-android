@@ -50,6 +50,7 @@ fun MainTabView(
                 onOpenSettings    = { showSettings = true },
                 viewModel         = homeViewModel,
                 onOpenReader      = { article ->
+                    AnalyticsManager.trackClick("full_article", "Home")
                     AnalyticsManager.fullArticleTapped(article)
                     readerArticle = article
                 },
@@ -96,6 +97,7 @@ fun MainTabView(
             selectedTab = selectedTab,
             modifier    = Modifier.align(Alignment.BottomCenter),
             onTabSelected = { tab ->
+                AnalyticsManager.trackClick("tab_${tab.label.lowercase()}", "MainTab")
                 selectedTab = tab
                 if (tab == Tab.SETTINGS) {
                     showSettings = true

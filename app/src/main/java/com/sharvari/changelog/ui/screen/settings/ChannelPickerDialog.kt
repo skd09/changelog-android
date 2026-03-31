@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -47,6 +48,8 @@ import com.sharvari.changelog.utils.categoryIcon
 fun ChannelPickerDialog(onDismiss: () -> Unit) {
     val selectedSlugs by CategoryStore.selectedSlugs.collectAsStateWithLifecycle()
     val n = selectedSlugs.size
+
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("ChannelPicker") }
 
     Dialog(
         onDismissRequest = onDismiss,

@@ -44,6 +44,8 @@ fun FeedbackSheet(onDismiss: () -> Unit) {
     var isSending by remember { mutableStateOf(false) }
     var submitted by remember { mutableStateOf(false) }
     val scope     = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("Feedback") }
     val isValid   = text.trim().length >= 10
 
     Dialog(

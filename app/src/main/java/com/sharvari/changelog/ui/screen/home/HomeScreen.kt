@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.store.home.HomeUiState
 import com.sharvari.changelog.store.home.HomeViewModel
 import com.sharvari.changelog.ui.screen.article.ArticleCardView
@@ -80,6 +82,8 @@ fun HomeScreen(
 
     var isOnline by remember { mutableStateOf(true) }
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("Home") }
 
     // Network monitor — matches iOS NWPathMonitor
     DisposableEffect(Unit) {

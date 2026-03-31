@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharvari.changelog.model.article.Article
+import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.store.bookmark.BookmarkStore
 import com.sharvari.changelog.ui.components.CyberDivider
 import com.sharvari.changelog.ui.theme.AppColors
@@ -162,6 +163,7 @@ fun ArticleCardView(
                     modifier = Modifier.fillMaxSize().pointerInput(Unit) {
                         detectTapGestures(
                             onDoubleTap = {
+                                AnalyticsManager.trackClick("double_tap_upvote", "ArticleCard")
                                 localVote = "up"
                                 voteCache[article.id] = "up"
                                 onVote("up", true)
@@ -211,6 +213,7 @@ fun ArticleCardView(
                             .border(1.5.dp, if (isUpvoted) AppColors.green.copy(alpha = 0.6f) else AppColors.divider.copy(alpha = 0.4f), CircleShape)
                             .clip(CircleShape)
                             .clickable {
+                                AnalyticsManager.trackClick("upvote", "ArticleCard")
                                 val wasActive = isUpvoted
                                 val newVote = if (wasActive) null else "up"
                                 localVote = newVote
@@ -232,6 +235,7 @@ fun ArticleCardView(
                             .border(1.5.dp, if (isDownvoted) AppColors.orange.copy(alpha = 0.6f) else AppColors.divider.copy(alpha = 0.4f), CircleShape)
                             .clip(CircleShape)
                             .clickable {
+                                AnalyticsManager.trackClick("downvote", "ArticleCard")
                                 val wasActive = isDownvoted
                                 val newVote = if (wasActive) null else "down"
                                 localVote = newVote
@@ -284,7 +288,10 @@ fun ArticleCardView(
                                 .background(if (isBookmarked) AppColors.neon.copy(alpha = 0.15f) else AppColors.surfaceHigh, CircleShape)
                                 .border(1.dp, if (isBookmarked) AppColors.neon.copy(alpha = 0.4f) else AppColors.divider, CircleShape)
                                 .clip(CircleShape)
-                                .clickable { BookmarkStore.toggle(context, article) },
+                                .clickable {
+                                    AnalyticsManager.trackClick("bookmark", "ArticleCard")
+                                    BookmarkStore.toggle(context, article)
+                                },
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -303,7 +310,10 @@ fun ArticleCardView(
                                 .background(AppColors.surfaceHigh, CircleShape)
                                 .border(1.dp, AppColors.divider, CircleShape)
                                 .clip(CircleShape)
-                                .clickable { shareUrl() },
+                                .clickable {
+                                    AnalyticsManager.trackClick("share", "ArticleCard")
+                                    shareUrl()
+                                },
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(Icons.Default.Share, "Share", tint = AppColors.textSecondary, modifier = Modifier.size(16.dp))
@@ -318,7 +328,10 @@ fun ArticleCardView(
                                 .background(AppColors.neon.copy(alpha = 0.1f), RoundedCornerShape(AppRadius.pill))
                                 .border(1.dp, AppColors.neon.copy(alpha = 0.4f), RoundedCornerShape(AppRadius.pill))
                                 .clip(RoundedCornerShape(AppRadius.pill))
-                                .clickable { onReadFullArticle() }
+                                .clickable {
+                                    AnalyticsManager.trackClick("read_article", "ArticleCard")
+                                    onReadFullArticle()
+                                }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
                             Text("READ ARTICLE", style = AppTypography.mono11, color = AppColors.neon, letterSpacing = 0.10.sp)

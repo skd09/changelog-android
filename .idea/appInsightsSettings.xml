@@ -37,9 +37,9 @@
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="com.sharvari.changelog" />
-                  <option name="mobileSdkAppId" value="1:131505734837:android:ebacdf24d99a601c06aafc" />
-                  <option name="projectId" value="the-changelog" />
-                  <option name="projectNumber" value="131505734837" />
+                  <option name="mobileSdkAppId" value="1:348509833328:android:6c248500c8543a0e9f4cb5" />
+                  <option name="projectId" value="the-changelog-fed7d" />
+                  <option name="projectNumber" value="348509833328" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

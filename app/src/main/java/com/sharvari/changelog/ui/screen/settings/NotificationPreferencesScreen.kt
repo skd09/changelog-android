@@ -30,6 +30,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.sharvari.changelog.data.other.APIService
 import com.sharvari.changelog.model.article.ALL_CATEGORIES
+import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.ui.components.CyberBackground
 import com.sharvari.changelog.ui.components.CyberButton
 import com.sharvari.changelog.ui.theme.AppColors
@@ -52,8 +53,8 @@ enum class NotificationFrequency(
     val description: String,
     val icon:        ImageVector,
 ) {
-    INSTANT("instant", "Instant",      "Get notified when top stories break",  Icons.Default.Bolt),
     DAILY("daily",     "Daily Digest", "One summary at your preferred time",    Icons.Default.CalendarMonth),
+    INSTANT("instant", "Instant",      "Get notified when top stories break",  Icons.Default.Bolt),
     OFF("off",         "Off",          "No push notifications",                 Icons.Default.NotificationsOff),
 }
 
@@ -67,6 +68,8 @@ fun NotificationPreferencesScreen(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val prefs   = remember { context.getSharedPreferences("changelog", android.content.Context.MODE_PRIVATE) }
     val scope   = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("NotificationPreferences") }
 
     // ── Load stored prefs ─────────────────────────────────────────────────────
     val storedFrequency   = prefs.getString("notif_frequency", "daily") ?: "daily"

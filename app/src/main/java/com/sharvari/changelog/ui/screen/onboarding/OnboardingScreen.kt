@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.sharvari.changelog.data.other.APIService
 import com.sharvari.changelog.model.article.ArticleCategory
 import com.sharvari.changelog.store.category.CategoryStore
+import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.ui.components.CyberBackground
 import com.sharvari.changelog.ui.components.CyberBadge
 import com.sharvari.changelog.ui.components.CyberButton
@@ -88,6 +89,8 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     var localMinute    by remember { mutableIntStateOf(0) }
 
     fun goTo(page: Int) = scope.launch { pagerState.animateScrollToPage(page) }
+
+    LaunchedEffect(Unit) { AnalyticsManager.trackScreen("Onboarding") }
 
     CyberBackground(modifier = Modifier.fillMaxSize()) {
         CyberGridOverlay(modifier = Modifier.fillMaxSize())
@@ -185,9 +188,16 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     enabled = !(currentPage == 1 && channelsEmpty),
                     onClick = {
                         when (currentPage) {
-                            0 -> goTo(1)
-                            1 -> goTo(2)
+                            0 -> {
+                                AnalyticsManager.trackClick("get_started", "Onboarding")
+                                goTo(1)
+                            }
+                            1 -> {
+                                AnalyticsManager.trackClick("next_channels", "Onboarding")
+                                goTo(2)
+                            }
                             2 -> {
+                                AnalyticsManager.trackClick("save_and_get_started", "Onboarding")
                                 // Save notification prefs then complete
                                 val utcTime = localHourMinuteToUtcString(localHour, localMinute)
                                 val categories = selectedSlugs.toList()
@@ -279,9 +289,9 @@ private fun WelcomePage() {
 
         // Feature bullets — matches iOS 4 bullets
         val features = listOf(
-            Pair(Icons.Default.FlashOn,       "Stories distilled to 30 seconds"),
+            Pair(Icons.Default.FlashOn,       "Stories distilled to 10 seconds"),
             Pair(Icons.Default.Block,          "No account, no sign-up, ever"),
-            Pair(Icons.Default.Shield,         "Zero tracking. Zero ads profiling"),
+            Pair(Icons.Default.Shield,         "No personal data collected"),
             Pair(Icons.Default.BookmarkBorder, "Save, share, read at your pace"),
         )
 
@@ -402,8 +412,8 @@ private fun NotificationPage(
 
         data class FreqOption(val value: String, val label: String, val desc: String, val icon: ImageVector)
         val options = listOf(
-            FreqOption("instant", "Instant",      "Get notified when top stories break", Icons.Default.Bolt),
             FreqOption("daily",   "Daily Digest", "One summary at your preferred time",  Icons.Default.CalendarMonth),
+            FreqOption("instant", "Instant",      "Get notified when top stories break", Icons.Default.Bolt),
             FreqOption("off",     "Off",          "No push notifications",               Icons.Default.NotificationsOff),
         )
 

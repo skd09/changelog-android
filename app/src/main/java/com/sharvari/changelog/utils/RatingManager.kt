@@ -3,6 +3,8 @@ package com.sharvari.changelog.utils
 import android.app.Activity
 import android.content.Context
 import com.google.android.play.core.review.ReviewManagerFactory
+import com.google.android.play.core.review.testing.FakeReviewManager
+import com.sharvari.changelog.BuildConfig
 import timber.log.Timber
 
 /**
@@ -30,6 +32,11 @@ object RatingManager {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        Timber.d("RatingManager init — swipes=%d, asked=%d, firstDone=%b, rated=%b",
+            prefs.getInt(KEY_TOTAL_SWIPES, 0),
+            prefs.getInt(KEY_ASKED_COUNT, 0),
+            prefs.getBoolean(KEY_FIRST_PROMPT_DONE, false),
+            prefs.getBoolean(KEY_HAS_RATED, false))
     }
 
     /** Call on every card swipe (left or right). */
@@ -38,6 +45,8 @@ object RatingManager {
 
         val swipes = prefs.getInt(KEY_TOTAL_SWIPES, 0) + 1
         prefs.edit().putInt(KEY_TOTAL_SWIPES, swipes).apply()
+
+        Timber.d("RatingManager swipe #%d (trigger at %d)", swipes, FIRST_SWIPE_TRIGGER)
 
         // First-install trigger: show after 8 swipes (only if first prompt hasn't fired yet)
         if (!prefs.getBoolean(KEY_FIRST_PROMPT_DONE, false) && swipes >= FIRST_SWIPE_TRIGGER) {
@@ -48,10 +57,12 @@ object RatingManager {
     /** Call on every app open (when main screen appears). */
     fun recordAppOpen(activity: Activity) {
         if (shouldNeverAsk()) return
-        if (!prefs.getBoolean(KEY_FIRST_PROMPT_DONE, false)) return // wait for swipe trigger first
+        if (!prefs.getBoolean(KEY_FIRST_PROMPT_DONE, false)) return
 
         val opens = prefs.getInt(KEY_OPENS_SINCE_ASK, 0) + 1
         prefs.edit().putInt(KEY_OPENS_SINCE_ASK, opens).apply()
+
+        Timber.d("RatingManager app open #%d (trigger at %d)", opens, OPENS_BETWEEN_ASKS)
 
         if (opens >= OPENS_BETWEEN_ASKS) {
             showReview(activity)
@@ -61,6 +72,13 @@ object RatingManager {
     /** Call when user taps "Rate on Play Store" in settings. */
     fun markAsRated() {
         prefs.edit().putBoolean(KEY_HAS_RATED, true).apply()
+        Timber.d("RatingManager: marked as rated")
+    }
+
+    /** Reset all state — useful for testing. */
+    fun reset() {
+        prefs.edit().clear().apply()
+        Timber.d("RatingManager: reset all state")
     }
 
     private fun shouldNeverAsk(): Boolean {
@@ -78,15 +96,22 @@ object RatingManager {
             .putInt(KEY_OPENS_SINCE_ASK, 0)
             .apply()
 
-        Timber.d("Showing in-app review (attempt %d/%d)", askedCount + 1, MAX_ASK_COUNT)
+        Timber.d("RatingManager: showing review (attempt %d/%d)", askedCount + 1, MAX_ASK_COUNT)
 
-        val manager = ReviewManagerFactory.create(activity)
+        // Use FakeReviewManager in debug builds (real API won't show on sideloaded apps)
+        val manager = if (BuildConfig.DEBUG) {
+            FakeReviewManager(activity)
+        } else {
+            ReviewManagerFactory.create(activity)
+        }
+
         val request = manager.requestReviewFlow()
         request.addOnCompleteListener { task ->
             if (task.isSuccessful) {
+                Timber.d("RatingManager: review flow ready, launching")
                 manager.launchReviewFlow(activity, task.result)
             } else {
-                Timber.w("In-app review request failed: %s", task.exception?.message)
+                Timber.w("RatingManager: review request failed: %s", task.exception?.message)
             }
         }
     }

@@ -91,4 +91,19 @@ object AnalyticsManager {
             param("slug", slug)
         }
     }
+
+    // ── Screen & click tracking ────────────────────────────────────────────
+
+    fun trackScreen(name: String) {
+        analytics?.logEvent("screen_view") {
+            param("screen_name", name)
+        }
+    }
+
+    fun trackClick(name: String, screen: String) {
+        analytics?.logEvent("click_event") {
+            param("click_name", name)
+            param("screen_name", screen)
+        }
+    }
 }

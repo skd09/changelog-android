@@ -150,7 +150,7 @@ fun GestureWalkthrough(
 
                 // ── Subtitle ─────────────────────────────────────────────────
                 Text(
-                    text = "Swipe left to skip, right to read",
+                    text = "Swipe left to skip, right to read full article",
                     style = AppTypography.mono12,
                     color = AppColors.textSecondary,
                     letterSpacing = AppTypography.trackingWide,

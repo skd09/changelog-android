@@ -69,6 +69,7 @@ fun ArticleReaderScreen(
     )
 
     DisposableEffect(article.id) {
+        AnalyticsManager.trackScreen("ArticleReader")
         AnalyticsManager.articleOpened(article)
         onDispose { AnalyticsManager.articleClosed() }
     }
@@ -137,11 +138,13 @@ fun ArticleReaderScreen(
                     icon = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                     tint = if (isBookmarked) AppColors.neon else AppColors.textSecondary,
                 ) {
+                    AnalyticsManager.trackClick("bookmark", "ArticleReader")
                     BookmarkStore.toggle(context, article)
                 }
 
                 // Share
                 ToolbarButton(Icons.Default.Share) {
+                    AnalyticsManager.trackClick("share", "ArticleReader")
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, article.originalUrl)
