@@ -14,7 +14,7 @@ android {
         applicationId = "com.sharvari.changelog"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
+        versionCode = 5
         versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -27,15 +27,25 @@ android {
         }
         create("prod") {
             initWith(getByName("release"))
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             buildConfigField("String", "BASE_URL", "\"https://tcl-prod-api.thechangelog.app/api/v1\"")
             buildConfigField("String", "AD_UNIT_ID", "\"ca-app-pub-5701767605641071/2824801047\"") // production ad
             signingConfig = signingConfigs.getByName("debug")
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             lint {
                 checkReleaseBuilds = false
             }
         }
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

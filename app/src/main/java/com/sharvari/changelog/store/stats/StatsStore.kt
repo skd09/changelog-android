@@ -7,6 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.sharvari.changelog.model.stats.StatsDelta
 import com.sharvari.changelog.service.device.DeviceService
 import com.sharvari.changelog.data.response.ServerStats
+import com.sharvari.changelog.utils.RatingManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -136,8 +137,16 @@ object StatsStore {
         _avgSessionTime.value = stats.avgSessionTime
         _totalUpvotes.value   = stats.totalUpvotes
         _totalDownvotes.value = stats.totalDownvotes
+        val previousStreak = _currentStreak.value
         _currentStreak.value  = stats.currentStreak
         _longestStreak.value  = stats.longestStreak
+
+        // Trigger rating prompt on streak milestone (3+ days, first time hitting it)
+        if (stats.currentStreak >= 3 && previousStreak < 3) {
+            appContext?.let { ctx ->
+                (ctx as? android.app.Activity)?.let { RatingManager.recordAchievement(it) }
+            }
+        }
 
         persistIfReady {
             it[TOTAL_READS]    = stats.totalReads

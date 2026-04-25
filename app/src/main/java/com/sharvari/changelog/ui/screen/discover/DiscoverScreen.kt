@@ -205,7 +205,11 @@ private fun TrendingContent(viewModel: TrendingViewModel = viewModel()) {
             }
             is TrendingUiState.Success -> {
                 val successState = state as TrendingUiState.Success
-                if (successState.filtered.isEmpty()) {
+                if (successState.isFiltering) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = AppColors.neon, modifier = Modifier.size(36.dp), strokeWidth = 2.dp)
+                    }
+                } else if (successState.filtered.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Icon(Icons.Default.LocalFireDepartment, null, tint = AppColors.textMuted, modifier = Modifier.size(44.dp))

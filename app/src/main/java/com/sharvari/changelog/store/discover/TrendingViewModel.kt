@@ -18,6 +18,7 @@ sealed interface TrendingUiState {
         val articles: List<Article>,
         val filtered: List<Article>,
         val categories: List<ArticleCategory>,
+        val isFiltering: Boolean = false,
     ) : TrendingUiState
     data object Empty : TrendingUiState
 }
@@ -69,14 +70,14 @@ class TrendingViewModel : ViewModel() {
         viewModelScope.launch {
             val current = _uiState.value
             if (current !is TrendingUiState.Success) return@launch
+            _uiState.value = current.copy(isFiltering = true)
             try {
                 val response = APIService.shared.fetchTrending(category = slug)
-                _uiState.value = current.copy(filtered = response.data)
+                _uiState.value = current.copy(filtered = response.data, isFiltering = false)
             } catch (_: Exception) {
-                // Fallback to client-side filtering
                 val filtered = if (slug == null) current.articles
                 else current.articles.filter { it.category?.slug == slug }
-                _uiState.value = current.copy(filtered = filtered)
+                _uiState.value = current.copy(filtered = filtered, isFiltering = false)
             }
         }
     }
