@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Cleartext is permitted because the article WebView loads third-party news sites
+    that may not support HTTPS. Our own API calls all use HTTPS base URLs enforced
+    in build.gradle.kts (BuildConfig.BASE_URL). The WebView blocks dangerous schemes
+    (javascript:, data:, file:) in shouldOverrideUrlLoading.
+-->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

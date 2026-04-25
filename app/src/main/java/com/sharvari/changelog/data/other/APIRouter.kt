@@ -21,7 +21,7 @@ sealed class APIRouter {
     data class Articles(val query: ArticlesQuery) : APIRouter()
     data class RecordView(val id: String) : APIRouter()
     data class VoteArticle(val id: String, val body: VoteRequest) : APIRouter()
-    object Trending : APIRouter()
+    data class Trending(val category: String? = null) : APIRouter()
     data class Search(val query: String) : APIRouter()
     object Categories : APIRouter()
     data class UpdateFCMToken(val body: FCMTokenRequest) : APIRouter()
@@ -29,6 +29,11 @@ sealed class APIRouter {
     data class SyncStats(val body: StatsSyncRequest) : APIRouter()
     data class SubmitFeedback(val body: FeedbackRequest) : APIRouter()
     data class UpdateNotificationPreferences(val body: NotificationPreferencesRequest) : APIRouter()
+
+    // ── Bookmarks ────────────────────────────────────────────────────────────
+    object FetchBookmarks : APIRouter()
+    data class AddBookmark(val articleId: String) : APIRouter()
+    data class RemoveBookmark(val articleId: String) : APIRouter()
 }
 
 // ── Route properties ──────────────────────────────────────────────────────────
@@ -39,8 +44,10 @@ val APIRouter.method: HttpMethod get() = when (this) {
     is APIRouter.VoteArticle,
     is APIRouter.UpdateFCMToken,
     is APIRouter.SyncStats,
-    is APIRouter.SubmitFeedback     -> HttpMethod.POST
+    is APIRouter.SubmitFeedback,
+    is APIRouter.AddBookmark        -> HttpMethod.POST
     is APIRouter.UpdateNotificationPreferences -> HttpMethod.PUT
+    is APIRouter.RemoveBookmark     -> HttpMethod.DELETE
     else                            -> HttpMethod.GET
 }
 
@@ -58,6 +65,9 @@ val APIRouter.path: String get() = when (this) {
     is APIRouter.SyncStats                    -> "/devices/stats/sync"
     is APIRouter.SubmitFeedback               -> "/feedback"
     is APIRouter.UpdateNotificationPreferences -> "/devices/notification-preferences"
+    is APIRouter.FetchBookmarks               -> "/bookmarks"
+    is APIRouter.AddBookmark                  -> "/bookmarks/${articleId}"
+    is APIRouter.RemoveBookmark               -> "/bookmarks/${articleId}"
 }
 
 val APIRouter.requiresAuth: Boolean get() = when (this) {
@@ -76,6 +86,7 @@ val APIRouter.queryItems: Map<String, String>? get() = when (this) {
         if (query.exclude.isNotEmpty()) put("exclude", query.exclude.joinToString(","))
     }
     is APIRouter.Search -> mapOf("q" to query)
+    is APIRouter.Trending -> category?.let { mapOf("category" to it) }
     is APIRouter.AppConfig -> mapOf("platform" to "android")
     else -> null
 }

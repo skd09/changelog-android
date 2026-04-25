@@ -1,10 +1,14 @@
 package com.sharvari.changelog.store.bookmark
 
 import android.content.Context
+import com.sharvari.changelog.data.other.APIService
 import com.sharvari.changelog.model.article.Article
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -35,10 +39,13 @@ object BookmarkStore {
 
     fun toggle(context: Context, article: Article) {
         val current = _bookmarks.value.toMutableList()
-        if (current.any { it.id == article.id }) {
+        val wasBookmarked = current.any { it.id == article.id }
+        if (wasBookmarked) {
             current.removeAll { it.id == article.id }
+            CoroutineScope(Dispatchers.IO).launch { APIService.shared.removeBookmark(article.id) }
         } else {
             current.add(0, article) // newest first
+            CoroutineScope(Dispatchers.IO).launch { APIService.shared.addBookmark(article.id) }
         }
         _bookmarks.value = current
         save(context, current)
@@ -55,11 +62,25 @@ object BookmarkStore {
         val updated = _bookmarks.value.filter { it.id != articleId }
         _bookmarks.value = updated
         save(context, updated)
+        CoroutineScope(Dispatchers.IO).launch { APIService.shared.removeBookmark(articleId) }
     }
 
     fun clear(context: Context) {
         _bookmarks.value = emptyList()
         save(context, emptyList())
+    }
+
+    // ── Server sync ──────────────────────────────────────────────────────────
+
+    suspend fun syncFromServer(context: Context) {
+        try {
+            val response = APIService.shared.fetchBookmarks()
+            _bookmarks.value = response.data
+            save(context, response.data)
+            Timber.d("Bookmarks synced: %d items", response.data.size)
+        } catch (e: Exception) {
+            Timber.e(e, "Bookmark sync failed")
+        }
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

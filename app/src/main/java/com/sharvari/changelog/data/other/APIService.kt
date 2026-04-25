@@ -12,6 +12,7 @@ import com.sharvari.changelog.data.request.StatsSyncRequest
 import com.sharvari.changelog.data.response.ArticlesResponse
 import com.sharvari.changelog.data.response.CategoriesResponse
 import com.sharvari.changelog.data.response.DeviceRegisterResponse
+import com.sharvari.changelog.data.response.BookmarksResponse
 import com.sharvari.changelog.data.response.StatsResponse
 import com.sharvari.changelog.data.response.SuccessResponse
 import kotlinx.serialization.json.Json
@@ -69,8 +70,8 @@ class APIService(
 
     // ── Trending ──────────────────────────────────────────────────────────────
 
-    suspend fun fetchTrending(): ArticlesResponse =
-        client.request(APIRouter.Trending, deserializer())
+    suspend fun fetchTrending(category: String? = null): ArticlesResponse =
+        client.request(APIRouter.Trending(category), deserializer())
 
     // ── Search ────────────────────────────────────────────────────────────────
 
@@ -148,6 +149,21 @@ class APIService(
             APIRouter.SubmitFeedback(FeedbackRequest(type = slug, message = message, platform = "android")),
             deserializer<SuccessResponse>()
         )
+    }
+
+    // ── Bookmarks ────────────────────────────────────────────────────────────
+
+    suspend fun fetchBookmarks(): BookmarksResponse =
+        client.request(APIRouter.FetchBookmarks, deserializer())
+
+    suspend fun addBookmark(articleId: String) {
+        try { client.request(APIRouter.AddBookmark(articleId), deserializer<SuccessResponse>()) }
+        catch (e: Exception) { Timber.e(e, "Add bookmark failed") }
+    }
+
+    suspend fun removeBookmark(articleId: String) {
+        try { client.request(APIRouter.RemoveBookmark(articleId), deserializer<SuccessResponse>()) }
+        catch (e: Exception) { Timber.e(e, "Remove bookmark failed") }
     }
 
     // ── App Config ────────────────────────────────────────────────────────────

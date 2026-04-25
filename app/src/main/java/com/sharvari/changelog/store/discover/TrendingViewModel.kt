@@ -8,6 +8,7 @@ import com.sharvari.changelog.model.article.ArticleCategory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -36,13 +37,19 @@ class TrendingViewModel : ViewModel() {
             if (!refresh) _uiState.value = TrendingUiState.Loading
             val snapshot = allArticles.mapIndexed { i, a -> a.id to (i + 1) }.toMap()
             try {
-                val response = APIService.shared.fetchTrending()
+                // Fetch trending articles and all categories in parallel
+                val trendingDeferred  = async { APIService.shared.fetchTrending() }
+                val categoriesDeferred = async { runCatching { APIService.shared.fetchCategories() } }
+
+                val response = trendingDeferred.await()
                 if (refresh) previousRanks = snapshot
                 allArticles = response.data
-                val categories = response.data
-                    .mapNotNull { it.category }
-                    .distinctBy { it.slug }
-                    .sortedBy { it.name }
+
+                // Use the full categories list from the API, not just what's in trending
+                val categories = categoriesDeferred.await().getOrNull()?.data
+                    ?.sortedBy { it.name }
+                    ?: response.data.mapNotNull { it.category }.distinctBy { it.slug }.sortedBy { it.name }
+
                 _uiState.value = if (response.data.isEmpty()) {
                     TrendingUiState.Empty
                 } else {
@@ -59,11 +66,18 @@ class TrendingViewModel : ViewModel() {
     }
 
     fun filter(slug: String?) {
-        val current = _uiState.value
-        if (current is TrendingUiState.Success) {
-            val filtered = if (slug == null) current.articles
-            else current.articles.filter { it.category?.slug == slug }
-            _uiState.value = current.copy(filtered = filtered)
+        viewModelScope.launch {
+            val current = _uiState.value
+            if (current !is TrendingUiState.Success) return@launch
+            try {
+                val response = APIService.shared.fetchTrending(category = slug)
+                _uiState.value = current.copy(filtered = response.data)
+            } catch (_: Exception) {
+                // Fallback to client-side filtering
+                val filtered = if (slug == null) current.articles
+                else current.articles.filter { it.category?.slug == slug }
+                _uiState.value = current.copy(filtered = filtered)
+            }
         }
     }
 

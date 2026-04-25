@@ -104,7 +104,7 @@ fun ChangelogApp() {
     fun trackCard() {
         cardsSeenSinceAd++
         activity?.let { RatingManager.recordSwipe(it) }
-        if (cardsSeenSinceAd >= 9) {
+        if (cardsSeenSinceAd >= AdManager.AD_FREQUENCY) {
             cardsSeenSinceAd = 0
             activity?.let { AdManager.showAd(it) }
         }

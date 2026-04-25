@@ -10,4 +10,8 @@ data class ServerStats(
     @SerialName("total_sessions")    val totalSessions: Int = 0,
     @SerialName("avg_read_time")     val avgReadTime: Int = 0,
     @SerialName("avg_session_time")  val avgSessionTime: Int = 0,
+    @SerialName("total_upvotes")     val totalUpvotes: Int = 0,
+    @SerialName("total_downvotes")   val totalDownvotes: Int = 0,
+    @SerialName("current_streak")    val currentStreak: Int = 0,
+    @SerialName("longest_streak")    val longestStreak: Int = 0,
 )

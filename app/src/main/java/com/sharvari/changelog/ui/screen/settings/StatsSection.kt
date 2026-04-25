@@ -129,9 +129,32 @@ fun StatsSection() {
 
         val totalUpvotes   by StatsStore.totalUpvotes.collectAsStateWithLifecycle()
         val totalDownvotes by StatsStore.totalDownvotes.collectAsStateWithLifecycle()
+        val currentStreak  by StatsStore.currentStreak.collectAsStateWithLifecycle()
+        val longestStreak  by StatsStore.longestStreak.collectAsStateWithLifecycle()
+
+        // ── Streak banner ────────────────────────────────────────────
+        if (currentStreak > 0) {
+            val streakColor = Color(0xFFFF8019)
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .background(streakColor.copy(alpha = 0.06f), RoundedCornerShape(AppRadius.md))
+                    .border(1.dp, streakColor.copy(alpha = 0.25f), RoundedCornerShape(AppRadius.md))
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("🔥", fontSize = 24.sp)
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("$currentStreak-DAY STREAK", style = AppTypography.mono11, color = streakColor, fontWeight = FontWeight.Black, letterSpacing = AppTypography.trackingWide)
+                    Text("Best: $longestStreak days", style = AppTypography.body, color = AppColors.textSecondary)
+                }
+            }
+            Spacer(Modifier.height(AppSpacing.sm))
+        }
 
         data class StatEntry(val value: String, val label: String, val color: Color, val icon: ImageVector)
         val stats = listOf(
+            StatEntry(if (currentStreak > 0) "$currentStreak" else "—", "DAY STREAK", Color(0xFFFF8019), Icons.Default.LocalFireDepartment),
             StatEntry(readRatio,                 "READ RATIO",        AppColors.magenta,       Icons.Default.BarChart),
             StatEntry("$totalSessions",          "SESSIONS",          Color(0xFFFFB86C),       Icons.Default.LayersClear),
             StatEntry("$totalSkips",             "ARTICLES READ",     AppColors.textSecondary, Icons.Default.FastForward),

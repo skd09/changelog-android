@@ -27,6 +27,8 @@ object StatsStore {
     private val TOTAL_SESSION_SECONDS = intPreferencesKey("total_session_seconds")
     private val TOTAL_UPVOTES         = intPreferencesKey("total_upvotes")
     private val TOTAL_DOWNVOTES       = intPreferencesKey("total_downvotes")
+    private val CURRENT_STREAK        = intPreferencesKey("current_streak")
+    private val LONGEST_STREAK        = intPreferencesKey("longest_streak")
 
     private val _totalReads      = MutableStateFlow(0)
     private val _totalSkips      = MutableStateFlow(0)
@@ -35,6 +37,8 @@ object StatsStore {
     private val _avgSessionTime  = MutableStateFlow(0)
     private val _totalUpvotes    = MutableStateFlow(0)
     private val _totalDownvotes  = MutableStateFlow(0)
+    private val _currentStreak   = MutableStateFlow(0)
+    private val _longestStreak   = MutableStateFlow(0)
 
     val totalReads:     StateFlow<Int> = _totalReads.asStateFlow()
     val totalSkips:     StateFlow<Int> = _totalSkips.asStateFlow()
@@ -43,6 +47,8 @@ object StatsStore {
     val avgSessionTime: StateFlow<Int> = _avgSessionTime.asStateFlow()
     val totalUpvotes:   StateFlow<Int> = _totalUpvotes.asStateFlow()
     val totalDownvotes: StateFlow<Int> = _totalDownvotes.asStateFlow()
+    val currentStreak:  StateFlow<Int> = _currentStreak.asStateFlow()
+    val longestStreak:  StateFlow<Int> = _longestStreak.asStateFlow()
 
     private var pendingDelta = StatsDelta()
     private lateinit var appContext: Context
@@ -128,11 +134,17 @@ object StatsStore {
         _totalSessions.value  = stats.totalSessions
         _avgReadTime.value    = stats.avgReadTime
         _avgSessionTime.value = stats.avgSessionTime
+        _totalUpvotes.value   = stats.totalUpvotes
+        _totalDownvotes.value = stats.totalDownvotes
+        _currentStreak.value  = stats.currentStreak
+        _longestStreak.value  = stats.longestStreak
 
         persistIfReady {
             it[TOTAL_READS]    = stats.totalReads
             it[TOTAL_SKIPS]    = stats.totalSkips
             it[TOTAL_SESSIONS] = stats.totalSessions
+            it[CURRENT_STREAK] = stats.currentStreak
+            it[LONGEST_STREAK] = stats.longestStreak
         }
     }
 
@@ -152,6 +164,8 @@ object StatsStore {
         if (_totalSessions.value == 0)   _totalSessions.value   = prefs[TOTAL_SESSIONS]   ?: 0
         if (_totalUpvotes.value == 0)    _totalUpvotes.value    = prefs[TOTAL_UPVOTES]    ?: 0
         if (_totalDownvotes.value == 0)  _totalDownvotes.value  = prefs[TOTAL_DOWNVOTES]  ?: 0
+        if (_currentStreak.value == 0)   _currentStreak.value   = prefs[CURRENT_STREAK]   ?: 0
+        if (_longestStreak.value == 0)   _longestStreak.value   = prefs[LONGEST_STREAK]   ?: 0
 
         val readSecs = prefs[TOTAL_READ_SECONDS]    ?: 0
         val sessSecs = prefs[TOTAL_SESSION_SECONDS] ?: 0

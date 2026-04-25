@@ -40,6 +40,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.sharvari.changelog.model.article.Article
 import com.sharvari.changelog.service.analytics.AnalyticsManager
 import com.sharvari.changelog.store.bookmark.BookmarkStore
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.sharvari.changelog.ui.theme.AppColors
 import com.sharvari.changelog.ui.theme.AppTypography
 import java.net.URI
@@ -142,14 +143,10 @@ fun ArticleReaderScreen(
                     BookmarkStore.toggle(context, article)
                 }
 
-                // Share
+                // Share (branded card + URL)
                 ToolbarButton(Icons.Default.Share) {
                     AnalyticsManager.trackClick("share", "ArticleReader")
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, article.originalUrl)
-                    }
-                    context.startActivity(Intent.createChooser(intent, article.title))
+                    com.sharvari.changelog.utils.ShareCardGenerator.shareArticle(context, article)
                 }
 
                 // Reload / Stop
@@ -224,6 +221,7 @@ private fun ToolbarButton(
 private fun ArticleWebView(
     url: String,
     isReaderMode: Boolean,
+    isDark: Boolean = isSystemInDarkTheme(),
     onProgressChange: (Float) -> Unit,
     onLoadingChange: (Boolean) -> Unit,
     onWebViewReady: (WebView) -> Unit,
@@ -239,14 +237,17 @@ private fun ArticleWebView(
                 )
 
                 settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
+                settings.domStorageEnabled = false
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = true
                 settings.builtInZoomControls = true
                 settings.displayZoomControls = false
                 settings.setSupportZoom(true)
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
 
-                setBackgroundColor(android.graphics.Color.parseColor("#0a0a0f"))
+                val bgHex = if (isDark) "#0a0a0f" else "#ffffff"
+                setBackgroundColor(android.graphics.Color.parseColor(bgHex))
 
                 webViewClient = object : WebViewClient() {
                     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -261,6 +262,11 @@ private fun ArticleWebView(
                     }
 
                     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                        val url = request?.url?.toString() ?: return false
+                        // Block dangerous URL schemes
+                        if (url.startsWith("javascript:") || url.startsWith("data:") || url.startsWith("file:")) {
+                            return true // block
+                        }
                         return false
                     }
                 }
@@ -284,10 +290,18 @@ private fun ArticleWebView(
 
 private const val BASE_DARK_JS = """
 javascript:(function() {
-    var s = document.createElement('style');
-    s.id = '__cl_base_style';
-    s.innerText = ':root { color-scheme: dark; } body { background-color: #0a0a0f !important; }';
-    document.head.appendChild(s);
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function applyDark(dark) {
+        var existing = document.getElementById('__cl_base_style');
+        if (existing) existing.remove();
+        if (!dark) return;
+        var s = document.createElement('style');
+        s.id = '__cl_base_style';
+        s.innerText = ':root { color-scheme: dark; } body { background-color: #0a0a0f !important; color: #e2e8f0 !important; } body * { color: inherit !important; border-color: #2a2a3a !important; } a { color: #00ff9d !important; } img, video, iframe, svg, canvas { color: initial !important; }';
+        document.head.appendChild(s);
+    }
+    applyDark(mq.matches);
+    mq.addEventListener('change', function(e) { applyDark(e.matches); });
 })();
 """
 

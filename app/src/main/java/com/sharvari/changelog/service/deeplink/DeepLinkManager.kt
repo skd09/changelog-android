@@ -26,7 +26,9 @@ object DeepLinkManager {
      */
     fun handleNotification(data: Map<String, String>) {
         val articleId = data["article_id"] ?: return
-        Timber.d("Deep link: article %s", articleId)
+        // Validate UUID format to prevent injection
+        try { java.util.UUID.fromString(articleId) } catch (_: IllegalArgumentException) { return }
+        Timber.d("Deep link: article %s", articleId.take(8))
         _articleDeepLink.tryEmit(articleId)
     }
 }

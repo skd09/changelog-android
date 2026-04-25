@@ -59,7 +59,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private const val SWIPE_THRESHOLD = 110f
+private const val SWIPE_THRESHOLD = 70f
 private const val FLY_DISTANCE    = 1400f
 
 // In-memory vote cache — survives tab switches, cleared on process death
@@ -98,11 +98,7 @@ fun ArticleCardView(
     }
 
     fun shareUrl() {
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, article.originalUrl)
-        }
-        context.startActivity(Intent.createChooser(intent, article.title))
+        com.sharvari.changelog.utils.ShareCardGenerator.shareArticle(context, article)
     }
 
     fun flyOff(left: Boolean, action: () -> Unit) {
